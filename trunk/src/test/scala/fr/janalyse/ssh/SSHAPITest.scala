@@ -1,55 +1,53 @@
 package fr.janalyse.ssh
 
 
+import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.matchers.ShouldMatchers
-
+import org.scalatest.junit.JUnitRunner
 import SSH._
+import scala.io.Source
 
-//import scala.collection.JavaConversions._
-
+@RunWith(classOf[JUnitRunner])
 class SSHAPITest extends FunSuite with ShouldMatchers {
-  /*
+
   // ---------------------------------------------------------------------------
-  test("Basic tests") {
-    using(SSHSession(host="localhost", username="test", password="testtest")) { implicit session =>
-      val hostname = "hostname".execute
-      List("echo 1", "echo 2", "echo 3").execute.map(_.trim) should equal (List("1", "2", "3"))
-      "Hello World" put "file.tst"
-      "file.tst".get.getOrElse("") should equal ("Hello World")
-    }
+  test("One line exec with automatic resource close") {
+    ssh(username="test") { _ execute "expr 1 + 1" }            should equal("2\n")
+    ssh(username="test") { implicit ssh => "expr 1 + 1" !}     should equal("2\n")
+    ssh(username="test") { _ execute "echo 1"::"echo 2"::Nil}  should equal("1\n"::"2\n"::Nil)
   }
   // ---------------------------------------------------------------------------
-  test("Basic tests revisited") {
-    using("mylocal:127.0.0.1:test:testtest") { implicit session =>
-      val hostname = "hostname".execute
-      List("echo 1", "echo 2", "echo 3").execute.map(_.trim) should equal (List("1", "2", "3"))
-      "Hello World" put "file.tst"
-      "file.tst".get.getOrElse("") should equal ("Hello World")
-    }
-  }
-  */
-  // ---------------------------------------------------------------------------
-  test("NEW-1") {
-    val files = ssh(username="test") { _ execute "ls" }
-    info("***"+files.trim+"***")
-  }
-  // ---------------------------------------------------------------------------
-  test("NEW-2") {
+  test("Execution & file transferts within the same ssh session") {
     ssh(username="test") { implicit ssh =>
-      val uname   = "uname"!
+      val msg   = "/bin/echo -n 'Hello %s'".format(util.Properties.userName) !
       
-      //"HelloWorld" >> "hello.txt"
+      "HelloWorld.txt" put msg
       
-      val content = "hello.txt".get
+      ("HelloWorld.txt" get) should equal(Some(msg))
       
-      val List(uname2, hostname2, id2) = List("uname -a","hostname","id") !
+      "HelloWorld.txt" >> "/tmp/sshtest.txt"
       
-      info(content.toString)
-      info(uname2)
+      Source.fromFile("/tmp/sshtest.txt").getLines().next() should equal(msg)
     }
   }
   // ---------------------------------------------------------------------------
+  test("Bad performances obtained without persistent schell ssh channel") {
+    ssh(username="test") { implicit ssh =>
+      val remotedate = "date" !
+      
+      for(i <- 1 to 100) {"ls -d /tmp && echo 'done'" !}
+    }
+  }
+  // ---------------------------------------------------------------------------
+  test("Best performance is achieved with mutiple command within the same shell channel") {
+    ssh(username="test") { _.shell {implicit sh =>
+      val remotedate = sh execute "date"
+      for(i <- 1 to 100) {sh execute "ls -d /tmp && echo 'done'"}
+      info("This one is at least 10 times faster than the previous one !")
+      info("But now let's work on the syntax, because it is not simple enough")
+    }}
+  }
 
 }
 

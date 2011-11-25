@@ -8,97 +8,11 @@ import java.util.logging._
 import java.io._
 import scala.collection.generic.CanBuildFrom
 
-// =============================================================================
-/*
-trait AutoClose {
+
+
+trait SSHAutoClose {
   // Automatic resource liberation
-  def using[T <: { def close}, R] (resource: T) (block: T => R) = {
-    try {
-      block(resource)
-    } finally {
-      if (resource != null) resource.close
-    }
-  }
-}
-
-case class Credentials(username:String, password:String)
-
-
-abstract class Connector {
-  val name:String
-  val ip:String
-  val port:Int
-  val credentials:Option[Credentials]
-  val props:Map[String,String]
-}
-
-case class SSHConnector(name:String, ip:String, port:Int, credentials:Option[Credentials], props:Map[String,String]=Map.empty) extends Connector
-
-object SSHConnector {
-  implicit def string2SSHConnector(spec:String):SSHConnector = SSHConnector(spec)
-  
-  def apply(spec:String) = {
-    spec.trim.split(":") match {
-      case Array(name,username,password)              => new SSHConnector(name=name, ip="localhost", port=22, credentials=Some(Credentials(username, password)))
-      case Array(name,host,username,password)         => new SSHConnector(name=name, ip=host, port=22, credentials=Some(Credentials(username, password)))
-      case Array(name,host,username,password,port,_*) => new SSHConnector(name=name, ip=host, port=port.toInt, credentials=Some(Credentials(username, password)))
-    }
-  }
-}
-
-*/
-
-// =============================================================================
-
-/*
-class SSHListExecutor(commands:List[String])(implicit session:SSH) extends AutoClose {
-  def execute = using(session.shell) { sh => commands map { sh execute _ }}
-}
-
-class SSHStringExecutor(command:String)(implicit session:SSH) extends AutoClose {
-  def execute = using(session.shell) { _ execute command }
-}
-
-class FTPSender(data:String)(implicit session:SSH) extends AutoClose {
-  def put(filename:String) {using(session.ftp) {_.put(data,filename)}}
-}
-
-class FTPFileSender(localFilename:String)(implicit session:SSH) extends AutoClose {
-  def send(remoteFilename:String) {using(session.ftp) {_.send(localFilename,remoteFilename)}}
-}
-
-class FTPReceiver(remoteFilename:String)(implicit session:SSH) extends AutoClose {
-  def get = {using(session.ftp) {_.get(remoteFilename)}}
-}
-
-class FTPFileReceiver(remoteFilename:String)(implicit session:SSH) extends AutoClose {
-  def receive(localFilename:String) = {using(session.ftp) {_.receive(remoteFilename, localFilename)}}
-  def receive(localFile:File) = {using(session.ftp) {_.receive(remoteFilename, localFile)}}
-}
-*/
-
-
-/*
-object SSH {
-  
-  def apply(c :SSHConnector) = new SSH(username=c.credentials.get.username, password=c.credentials.get.password, host=c.ip, port=c.port)
-
-  // Implicits conversions
-  implicit def connector2session(connector:SSHConnector) = SSH(connector)
-  //implicit def server2session(server:Server) = SSH(server)
-  implicit def list2Shell(commands:List[String])(implicit session:SSH) = new SSHListExecutor(commands)
-  implicit def string2Shell(command:String)(implicit session:SSH) = new SSHStringExecutor(command)
-  implicit def string2FTPSender(data:String)(implicit session:SSH) = new FTPSender(data)
-  implicit def string2FTPFileSender(localFilename:String)(implicit session:SSH) = new FTPFileSender(localFilename)
-  implicit def string2FTPReceiver(remoteFilename:String)(implicit session:SSH) = new FTPReceiver(remoteFilename)
-  implicit def string2FTPFileReceiver(remoteFilename:String)(implicit session:SSH) = new FTPFileReceiver(remoteFilename)
-  
-}*/
-
-
-trait AutoClose {
-  // Automatic resource liberation
-  def using[T <: { def close()}, R] (resource: T) (block: T => R) = {
+  def usingSSH[T <: { def close()}, R] (resource: T)(block: T => R) = {
     try     block(resource)
     finally resource.close
   }
@@ -118,9 +32,18 @@ class SSHBatch(val cmdList:List[String]) {
 }
 
 
-class SSHRemoteFile(val filename:String) {
+class SSHRemoteFile(val remoteFilename:String) {
   def get(implicit ssh:SSH) = {
-    ssh.ftp {_ get filename}
+    ssh.ftp {_ get remoteFilename}
+  }
+  def put(data:String)(implicit ssh:SSH) = {
+    ssh.ftp {_ put(data, remoteFilename)}
+  }
+  def >>(toLocalFilename:String)(implicit ssh:SSH) = {
+    ssh.ftp {_.receive(remoteFilename, toLocalFilename)}
+  }
+  def <<(fromLocalFilename:String)(implicit ssh:SSH) = {
+    ssh.ftp {_.send(fromLocalFilename, remoteFilename)}
   }
 }
 
@@ -135,7 +58,7 @@ case class SSHOptions(
 
 
     
-object SSH extends AutoClose  {
+object SSH extends SSHAutoClose  {
   def ssh[T](
     username:String,
     password:String="",
@@ -143,7 +66,7 @@ object SSH extends AutoClose  {
     host:String="localhost",
     port:Int=22,
     connectTimeout:Int=30000)
-    (withssh:(SSH)=>T) = using(new SSH(SSHOptions(username=username,password=password, passphrase=passphrase, host=host, port=port, connectTimeout=connectTimeout))) {
+    (withssh:(SSH)=>T) = usingSSH(new SSH(SSHOptions(username=username,password=password, passphrase=passphrase, host=host, port=port, connectTimeout=connectTimeout))) {
       withssh(_)
     }
   implicit def toCommand(cmd:String) = new SSHCommand(cmd)
@@ -157,26 +80,27 @@ object SSH extends AutoClose  {
     
     
 
-class SSH(val options:SSHOptions) extends AutoClose {
+class SSH(val options:SSHOptions) extends SSHAutoClose {
   private val jsch = new JSch
-  private var jschsession:Session = session
+  private var jschsession:Session = initSession
 
   def apply[T](proc:(SSH)=>T) =  proc(this)
   
-  def shell[T](proc:(SSHShell)=>T) = using(new SSHShell(this)) { proc(_) }
+  def shell[T](proc:(SSHShell)=>T) = usingSSH(new SSHShell(this)) { proc(_) }
 
-  def ftp[T](proc:(SSHFtp)=>T) = using(new SSHFtp(this)) { proc(_) }
+  def ftp[T](proc:(SSHFtp)=>T) = usingSSH(new SSHFtp(this)) { proc(_) }
   
-  def execute(cmd:SSHCommand):String = shell { _ execute cmd.cmd }
+  def execute(cmd:SSHCommand) = shell { _ execute cmd.cmd }
+  
+  def execute(cmds:List[String]) = shell {_ batch cmds}
   
   def close() { if (jschsession!=null) {
       jschsession.disconnect
       jschsession=null
     }
   }
-  
-  
-  def session = {
+    
+  private def initSession = {
     if (jschsession==null || !jschsession.isConnected) {
       close
       val home = scala.util.Properties.userHome
@@ -191,204 +115,203 @@ class SSH(val options:SSHOptions) extends AutoClose {
     jschsession
   }
     
-}
-
-// =============================================================================
-
-class SSHFtp(link:SSH) {
-  private var jschftpchannel:ChannelSftp=null
-
-  var retryCount=5
-  var retryDelay=2000
-
-  def channel = {
-    if (jschftpchannel==null) {
-      //jschftpchannel.connect(link.connectTimeout)
-      var connected=false
-      while(retryCount>0 && !connected) {
-        try {
-          jschftpchannel=link.session.openChannel("sftp").asInstanceOf[ChannelSftp]
-          jschftpchannel.connect(link.options.connectTimeout)
-          connected=true
-        } catch {
-          case e =>
-            try { jschftpchannel.disconnect} catch {case _=> } finally { jschftpchannel=null }
-            retryCount-=1
-            if (retryCount>0) Thread.sleep(retryDelay)
-            else {
-              println("SSH CONNECT Maximum retry count reached, couldn't connect to remote system "+link.options.host)
-              e.printStackTrace
-            }
-        }
-      }
-    }
-    jschftpchannel
-  }
-
-  def close() = {
-    if (jschftpchannel!=null) {
-      jschftpchannel.quit
-      jschftpchannel.disconnect
-      jschftpchannel=null
-    }
-  }
-
-  def get(filename:String):Option[String] = {
-    try {
-      Some(new BufferedSource(channel.get(filename)).mkString)
-    } catch {
-      case e:SftpException if (e.id==2) => None  // File doesn't exist
-      case e:IOException => None
-    }
-  }
-  def put(data:String, remoteFilename:String) {
-    channel.put(new ByteArrayInputStream(data.getBytes), remoteFilename)
-  }
-
-  def receive(remoteFilename:String, localFile:File) = {
-    try {
-      channel.get(remoteFilename, new FileOutputStream(localFile))
-    } catch {
-      case e:SftpException if (e.id==2) => None  // File doesn't exist
-      case e:IOException => None
-    }
-  }
-  def receive(remoteFilename:String, localFilename:String) = {
-    try {
-      channel.get(remoteFilename, new FileOutputStream(localFilename))
-    } catch {
-      case e:SftpException if (e.id==2) => None  // File doesn't exist
-      case e:IOException => None
-    }
-  }
-  def send(localFilename:String, remoteFilename:String) = {
-      channel.put(new FileInputStream(localFilename), remoteFilename)
-  }
-
-  def getRaw(filename:String):Option[Array[Byte]] = {
-    try {
-      Some(SSHTools.inputStream2ByteArray(channel.get(filename)))
-    } catch {
-      case e:SftpException if (e.id==2) => None  // File doesn't exist
-      case e:IOException => None
-    }
-  }
-
-}
-
-
-// =============================================================================
-
-class SSHShell(link:SSH, val timeout:Long=100000L) {
-  
-  def !(command:String) = execute(command)
-  
-  def batch[ I<:Iterable[String]](commands:I) (implicit bf: CanBuildFrom[I, String, I]) : I = {
-    var builder = bf.apply()
-    try {
-      for (cmd<-commands) builder += (execute(cmd))
-    }    
-    builder.result
-  }
-
-  
-  
-  val prompt="""-PRMT-: """
-  val inout = new PipedOutputStream
-  val inin = new PipedInputStream(inout)
-  val bout = new MyOut(self)
-
-  var retryCount=10
-  var retryDelay=10000
-
-  val channel = {
-    var channel:ChannelShell=null
-    var connected:Boolean = false
-    while(retryCount>0 && !connected) {
-      try {
-        channel = link.session.openChannel("shell").asInstanceOf[ChannelShell]
-        channel.setPtyType("dumb")
-        //channel.setPtyType("")
-        channel.setXForwarding(false)
-
-        channel.setInputStream(inin)
-        channel.setOutputStream(bout)
-        channel.connect(link.options.connectTimeout)
-        connected=true
-      } catch {
-        case e =>
-          try { channel.disconnect } catch {case _=> } finally { channel=null }
-          retryCount-=1
-          if (retryCount>0) Thread.sleep(retryDelay)
-          else {
-            println("SSH CONNECT Maximum retry count reached, couldn't connect to remote system "+link.options.host)
-            e.printStackTrace
-          }
-      }
-    }
-
-    sendCommand("""unset LS_COLORS """)
-    sendCommand("""export PS1='%s'""".format(prompt))
-    channel
-  }
-
-  def close() = {
-    inout.close
-    inin.close
-    channel.disconnect
-  }
-
-    def executeAndContinue(cmd:String, cont:String=>Unit):Unit = {
-        cont(execute(cmd))
-    }
-
-    def execute(cmd:String, timeout:Long = timeout) : String = {
-       sendCommand(cmd)
-       getResponse(timeout)
-    }
-
-    private def sendCommand(cmd:String):Unit = {
-       inout.write(cmd.getBytes)
-       inout.write("\n".getBytes)
-       inout.flush()
-    }
-
-    private def getResponse( timeout:Long=timeout, breaktry:Int=5) : String = {
-       receiveWithin(timeout) {
-         case TIMEOUT => // Sending Break command ctrl-c
-            inout.write(28.toChar.toString.getBytes)
-            if (breaktry>0) getResponse(timeout, breaktry-1) else "FAILED TO BREAK"
-         case v@_ => v.toString
-       }
-    }
-
-    // ATTENTION Appelé par un thread tiers (appartenant à jsch)
-    class MyOut(caller:Actor) extends OutputStream {
-      var boot=true // Amorçage réalisé une fois le prompt effectivement modifié, on ignore tout ce qui a pu etre réalisé précédement
-      var waitFirstPrompt=true // On attend la première apparition du prompt, on ignore ce qui a pu se passer précédemment
-      var lines = List[String]()
-      var line=""
-      def write(b: Int) = b match {
-        case 13 =>
-        case 10 =>
-          if (boot && line.startsWith(prompt)) {
-            boot=false
-            lines=List(lines.last)
-          } else
-            lines=lines:+line
-          line=""
-        case _ =>
-          line+=b.toChar
-          if (!boot && (line endsWith prompt)) {
-            //if (!waitFirstPrompt) {
-              lines=lines:+line.dropRight(prompt.size)
-              caller ! (lines.tail mkString "\n")
-            //} else waitFirstPrompt=false
-            lines=List[String]()
-            line=""
-          }
-      }
-    }
+	// =============================================================================
+	
+	class SSHFtp(link:SSH) {
+	  private var jschftpchannel:ChannelSftp=null
+	
+	  var retryCount=5
+	  var retryDelay=2000
+	
+	  def channel = {
+	    if (jschftpchannel==null) {
+	      //jschftpchannel.connect(link.connectTimeout)
+	      var connected=false
+	      while(retryCount>0 && !connected) {
+	        try {
+	          jschftpchannel=jschsession.openChannel("sftp").asInstanceOf[ChannelSftp]
+	          jschftpchannel.connect(link.options.connectTimeout)
+	          connected=true
+	        } catch {
+	          case e =>
+	            try { jschftpchannel.disconnect} catch {case _=> } finally { jschftpchannel=null }
+	            retryCount-=1
+	            if (retryCount>0) Thread.sleep(retryDelay)
+	            else {
+	              println("SSH CONNECT Maximum retry count reached, couldn't connect to remote system "+link.options.host)
+	              e.printStackTrace
+	            }
+	        }
+	      }
+	    }
+	    jschftpchannel
+	  }
+	
+	  def close() = {
+	    if (jschftpchannel!=null) {
+	      jschftpchannel.quit
+	      jschftpchannel.disconnect
+	      jschftpchannel=null
+	    }
+	  }
+	
+	  def get(filename:String):Option[String] = {
+	    try {
+	      Some(new BufferedSource(channel.get(filename)).mkString)
+	    } catch {
+	      case e:SftpException if (e.id==2) => None  // File doesn't exist
+	      case e:IOException => None
+	    }
+	  }
+	  def put(data:String, remoteFilename:String) {
+	    channel.put(new ByteArrayInputStream(data.getBytes), remoteFilename)
+	  }
+	
+	  def receive(remoteFilename:String, localFile:File) = {
+	    try {
+	      channel.get(remoteFilename, new FileOutputStream(localFile))
+	    } catch {
+	      case e:SftpException if (e.id==2) => None  // File doesn't exist
+	      case e:IOException => None
+	    }
+	  }
+	  def receive(remoteFilename:String, localFilename:String) = {
+	    try {
+	      channel.get(remoteFilename, new FileOutputStream(localFilename))
+	    } catch {
+	      case e:SftpException if (e.id==2) => None  // File doesn't exist
+	      case e:IOException => None
+	    }
+	  }
+	  def send(localFilename:String, remoteFilename:String) = {
+	      channel.put(new FileInputStream(localFilename), remoteFilename)
+	  }
+	
+	  def getRaw(filename:String):Option[Array[Byte]] = {
+	    try {
+	      Some(SSHTools.inputStream2ByteArray(channel.get(filename)))
+	    } catch {
+	      case e:SftpException if (e.id==2) => None  // File doesn't exist
+	      case e:IOException => None
+	    }
+	  }
+	
+	}
+	
+	
+	// =============================================================================
+	
+	class SSHShell(link:SSH, val timeout:Long=100000L) {
+	  
+	  def !(command:String) = execute(command)
+	  
+	  def batch[ I<:Iterable[String]](commands:I) (implicit bf: CanBuildFrom[I, String, I]) : I = {
+	    var builder = bf.apply()
+	    try {
+	      for (cmd<-commands) builder += (execute(cmd))
+	    }    
+	    builder.result
+	  }
+	
+	  
+	  
+	  val prompt="""-PRMT-: """
+	  val inout = new PipedOutputStream
+	  val inin = new PipedInputStream(inout)
+	  val bout = new MyOut(self)
+	
+	  var retryCount=10
+	  var retryDelay=10000
+	
+	  val channel = {
+	    var channel:ChannelShell=null
+	    var connected:Boolean = false
+	    while(retryCount>0 && !connected) {
+	      try {
+	        channel = jschsession.openChannel("shell").asInstanceOf[ChannelShell]
+	        channel.setPtyType("dumb")
+	        //channel.setPtyType("")
+	        channel.setXForwarding(false)
+	
+	        channel.setInputStream(inin)
+	        channel.setOutputStream(bout)
+	        channel.connect(link.options.connectTimeout)
+	        connected=true
+	      } catch {
+	        case e =>
+	          try { channel.disconnect } catch {case _=> } finally { channel=null }
+	          retryCount-=1
+	          if (retryCount>0) Thread.sleep(retryDelay)
+	          else {
+	            println("SSH CONNECT Maximum retry count reached, couldn't connect to remote system "+link.options.host)
+	            e.printStackTrace
+	          }
+	      }
+	    }
+	
+	    sendCommand("""unset LS_COLORS """)
+	    sendCommand("""export PS1='%s'""".format(prompt))
+	    channel
+	  }
+	
+	  def close() = {
+	    inout.close
+	    inin.close
+	    channel.disconnect
+	  }
+	
+	    def executeAndContinue(cmd:String, cont:String=>Unit):Unit = {
+	        cont(execute(cmd))
+	    }
+	
+	    def execute(cmd:String, timeout:Long = timeout) : String = {
+	       sendCommand(cmd)
+	       getResponse(timeout)
+	    }
+	
+	    private def sendCommand(cmd:String):Unit = {
+	       inout.write(cmd.getBytes)
+	       inout.write("\n".getBytes)
+	       inout.flush()
+	    }
+	
+	    private def getResponse( timeout:Long=timeout, breaktry:Int=5) : String = {
+	       receiveWithin(timeout) {
+	         case TIMEOUT => // Sending Break command ctrl-c
+	            inout.write(28.toChar.toString.getBytes)
+	            if (breaktry>0) getResponse(timeout, breaktry-1) else "FAILED TO BREAK"
+	         case v@_ => v.toString
+	       }
+	    }
+	
+	    // ATTENTION Appelé par un thread tiers (appartenant à jsch)
+	    class MyOut(caller:Actor) extends OutputStream {
+	      var boot=true // Amorçage réalisé une fois le prompt effectivement modifié, on ignore tout ce qui a pu etre réalisé précédement
+	      var waitFirstPrompt=true // On attend la première apparition du prompt, on ignore ce qui a pu se passer précédemment
+	      var lines = List[String]()
+	      var line=""
+	      def write(b: Int) = b match {
+	        case 13 =>
+	        case 10 =>
+	          if (boot && line.startsWith(prompt)) {
+	            boot=false
+	            lines=List(lines.last)
+	          } else
+	            lines=lines:+line
+	          line=""
+	        case _ =>
+	          line+=b.toChar
+	          if (!boot && (line endsWith prompt)) {
+	            //if (!waitFirstPrompt) {
+	              lines=lines:+line.dropRight(prompt.size)
+	              caller ! (lines.tail mkString "\n")
+	            //} else waitFirstPrompt=false
+	            lines=List[String]()
+	            line=""
+	          }
+	      }
+	    }
+	}
 }
 
 // =============================================================================

@@ -17,12 +17,15 @@
 package fr.janalyse.ssh
 
 import com.jcraft.jsch._
+
 import scala.actors._
 import scala.actors.Actor._
 import scala.io.BufferedSource
 import java.util.logging._
 import java.io._
 import scala.collection.generic.CanBuildFrom
+import java.nio.charset.Charset
+import java.nio.ByteBuffer
 
 trait SSHAutoClose {
   // Automatic resource liberation
@@ -144,8 +147,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   
   class SSHExec() {
     private var jschexecchannel  : ChannelExec = _
-    private var jschStdoutStream : InputStream = _
-    private var jschStderrStream : InputStream = _
+    private var jschStdoutStream : PipedInputStream = _
+    private var jschStderrStream : PipedInputStream = _
     
     def getChannel(cmd:String) = {
       if (jschexecchannel == null || jschexecchannel.isClosed() || jschexecchannel.isEOF()) {
@@ -156,8 +159,14 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
           try {
             jschexecchannel = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
             jschexecchannel.setCommand(cmd.getBytes())
-            jschStdoutStream = jschexecchannel.getInputStream()
-            jschStderrStream = jschexecchannel.getErrStream()
+            
+            //jschStdoutStream = jschexecchannel.getInputStream()
+            //jschStderrStream = jschexecchannel.getErrStream()
+            jschStdoutStream  = new PipedInputStream(32*1024)
+            jschStderrStream  = new PipedInputStream(32*1024)
+            jschexecchannel.setErrStream(new PipedOutputStream(jschStderrStream), false)
+            jschexecchannel.setOutputStream(new PipedOutputStream(jschStdoutStream), false)
+            
             jschexecchannel.connect(ssh.options.connectTimeout)
             connected = true
           } catch {
@@ -178,7 +187,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     def run(cmd:String, clientActor:Actor) = {
       val channel = getChannel(cmd)
       val stdout  = InputStreamActor(channel, jschStdoutStream, clientActor, StandardOutputMessage(_))
-      val stderr  = InputStreamActor(channel, jschStderrStream, clientActor, StandardErrorMessage(_))
+      //val stderr  = InputStreamActor(channel, jschStderrStream, clientActor, StandardErrorMessage(_))
       val stdin   = OutputStreamActor(channel, channel.getOutputStream())
       stdin
     }
@@ -186,24 +195,24 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     
     class InputStreamActor(channel:ChannelExec, input:InputStream, clientActor:Actor, msgBuilder:(String)=>OutputMessage) extends Actor {
       def act() {
-        // ---- bad
-        // for(line <- io.Source.fromInputStream(input).getLines()) { clientActor ! msgBuilder(line) }
-        // ---- bad
-        // val in = new BufferedReader(new InputStreamReader(input))
-        // Stream.continually(in readLine).takeWhile(_ != null).foreach(line=> clientActor ! msgBuilder(line) )
-    	try {
-	        val in = new BufferedReader(new InputStreamReader(input))
-	        while(true) {
-	          in.readLine match {
-	            case null =>
-	            case line:String => println("==>"+line); clientActor ! msgBuilder(line)
-	          }
-	        }
-    	} catch {
-    	  case e => e.printStackTrace()
-    	} finally {
-    	  println("FINISHED")
-    	}
+        val bufsize = 16*1024
+    	val charset = Charset.forName("ISO-8859-15")
+    	val binput  = new BufferedInputStream(input)
+        val bytes   = Array.ofDim[Byte](bufsize)
+    	val buffer  = ByteBuffer.allocate(bufsize)
+    	do {
+    	  val available = binput.available()
+    	  val howmany   = binput.read(bytes, 0, if (available < bufsize) available else bufsize)
+    	  if (howmany>0) {
+    	    buffer.put(bytes, 0, howmany)
+    	    buffer.flip()
+    	    val cbOut = charset.decode(buffer)
+    	    println("==>"+cbOut.toString())
+    	  }
+    	  println("avail=%d read=%d eof=%s closed=%s".format(available, howmany, channel.isEOF().toString(), channel.isClosed().toString))
+    	  Thread.sleep(1000)
+    	} while(/*!channel.isEOF() && !channel.isClosed()*/ true)
+    	println("CLOSED")
       }
     }
     object InputStreamActor {

@@ -77,8 +77,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
           }
         }
       }
-      val stdin = ssh.run("vmstat 1 10", receiver)
-      Thread.sleep(10*1000L)
+      val stdin = ssh.run("vmstat 1 30", receiver)
+      Thread.sleep(35*1000L)
     }
   }
 

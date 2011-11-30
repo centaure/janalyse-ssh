@@ -53,14 +53,14 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     ssh(username="test") { implicit ssh =>
       val remotedate = "date" !
       
-      for(i <- 1 to 100) {"ls -d /tmp && echo 'done'" !}
+      for(i <- 1 to 10) {"ls -d /tmp && echo 'done'" !}
     }
   }
   // ---------------------------------------------------------------------------
   test("Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
     ssh(username="test") { _.shell { sh =>
       val remotedate = sh execute "date"
-      for(i <- 1 to 100) {sh execute "ls -d /tmp && echo 'done'"}
+      for(i <- 1 to 10) {sh execute "ls -d /tmp && echo 'done'"}
       info("This one is at least 10 times faster than the previous one !")
       info("But now let's work on the syntax, because it is not simple enough")
     }}

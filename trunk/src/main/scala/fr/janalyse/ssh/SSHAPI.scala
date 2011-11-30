@@ -147,8 +147,10 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   
   class SSHExec() {
     private var jschexecchannel  : ChannelExec = _
-    private var jschStdoutStream : PipedInputStream = _
-    private var jschStderrStream : PipedInputStream = _
+//    private var jschStdoutStream : PipedInputStream = _
+//    private var jschStderrStream : PipedInputStream = _
+    private var jschStdoutStream : InputStream = _
+    private var jschStderrStream : InputStream = _
     
     def getChannel(cmd:String) = {
       if (jschexecchannel == null || jschexecchannel.isClosed() || jschexecchannel.isEOF()) {
@@ -160,12 +162,12 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
             jschexecchannel = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
             jschexecchannel.setCommand(cmd.getBytes())
             
-            //jschStdoutStream = jschexecchannel.getInputStream()
-            //jschStderrStream = jschexecchannel.getErrStream()
-            jschStdoutStream  = new PipedInputStream(32*1024)
-            jschStderrStream  = new PipedInputStream(32*1024)
-            jschexecchannel.setErrStream(new PipedOutputStream(jschStderrStream), false)
-            jschexecchannel.setOutputStream(new PipedOutputStream(jschStdoutStream), false)
+            jschStdoutStream = jschexecchannel.getInputStream()
+            jschStderrStream = jschexecchannel.getErrStream()
+//            jschStdoutStream  = new PipedInputStream(32*1024)
+//            jschStderrStream  = new PipedInputStream(32*1024)
+//            jschexecchannel.setErrStream(new PipedOutputStream(jschStderrStream), true)
+//            jschexecchannel.setOutputStream(new PipedOutputStream(jschStdoutStream), true)
             
             jschexecchannel.connect(ssh.options.connectTimeout)
             connected = true
@@ -186,15 +188,15 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     
     def run(cmd:String, clientActor:Actor) = {
       val channel = getChannel(cmd)
-      val stdout  = InputStreamActor(channel, jschStdoutStream, clientActor, StandardOutputMessage(_))
-      //val stderr  = InputStreamActor(channel, jschStderrStream, clientActor, StandardErrorMessage(_))
+      val stdout  = InputStreamThread(channel, jschStdoutStream, clientActor, StandardOutputMessage(_))
+      val stderr  = InputStreamThread(channel, jschStderrStream, clientActor, StandardErrorMessage(_))
       val stdin   = OutputStreamActor(channel, channel.getOutputStream())
       stdin
     }
     
     
-    class InputStreamActor(channel:ChannelExec, input:InputStream, clientActor:Actor, msgBuilder:(String)=>OutputMessage) extends Actor {
-      def act() {
+    class InputStreamThread(channel:ChannelExec, input:InputStream, clientActor:Actor, msgBuilder:(String)=>OutputMessage) extends Thread {
+      override def run() {
         val bufsize = 16*1024
     	val charset = Charset.forName("ISO-8859-15")
     	val binput  = new BufferedInputStream(input)
@@ -215,11 +217,11 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     	println("CLOSED")
       }
     }
-    object InputStreamActor {
+    object InputStreamThread {
       def apply(channel:ChannelExec, input:InputStream, clientActor:Actor, msgBuilder:(String)=>OutputMessage) = { 
-        val newactor = new InputStreamActor(channel, input, clientActor, msgBuilder)
-        newactor.start()
-        newactor
+        val newthread = new InputStreamThread(channel, input, clientActor, msgBuilder)
+        newthread.start()
+        newthread
       }
     }
     
@@ -227,7 +229,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       val pout = new java.io.PrintStream(output)
       def act() {
         loop {
-          react {
+          receive {
           	case str:String =>  pout.println(str)
           }
         }

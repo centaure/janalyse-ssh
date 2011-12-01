@@ -71,11 +71,12 @@ object SSHRemoteFile {
 }
 
 trait OutputMessage {
-  val line:String
+  val line: String
 }
-case class StandardOutputMessage(line:String) extends OutputMessage
-case class StandardErrorMessage(line:String) extends OutputMessage
-
+case class StandardOutputMessage(line: String) extends OutputMessage
+case class StandardErrorMessage(line: String) extends OutputMessage
+case class StandardOutputClosed(line:String="Finished") extends OutputMessage 
+case class StandardErrorClosed(line:String="Finished") extends OutputMessage
 
 case class SSHOptions(
   username: String,
@@ -84,9 +85,8 @@ case class SSHOptions(
   host: String = "localhost",
   port: Int = 22,
   connectTimeout: Int = 30000,
-  retryCount:Int = 5,
-  retryDelay:Int = 2000
-)
+  retryCount: Int = 5,
+  retryDelay: Int = 2000)
 
 object SSH extends SSHAutoClose {
   def ssh[T](
@@ -113,8 +113,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   def shell[T](proc: (SSHShell) => T) = usingSSH(new SSHShell) { proc(_) }
 
   def ftp[T](proc: (SSHFtp) => T) = usingSSH(new SSHFtp) { proc(_) }
-  
-  def run(cmd:String, clientActor:Actor) = usingSSH(new SSHExec) {_.run(cmd, clientActor)}
+
+  def run(cmd: String, clientActor: Actor) = new SSHExec(cmd, clientActor)
 
   def execute(cmd: SSHCommand) = shell { _ execute cmd.cmd }
 
@@ -142,38 +142,32 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     jschsession
   }
 
+  class SSHExec(cmd: String, clientActor: Actor) extends Actor {
+    private var jschexecchannel: ChannelExec = _
+    private var jschStdoutStream: InputStream = _
+    private var jschStderrStream: InputStream = _
+    private var jschStdinStream: OutputStream = _
 
-  
-  
-  class SSHExec() {
-    private var jschexecchannel  : ChannelExec = _
-//    private var jschStdoutStream : PipedInputStream = _
-//    private var jschStderrStream : PipedInputStream = _
-    private var jschStdoutStream : InputStream = _
-    private var jschStderrStream : InputStream = _
-    
-    def getChannel(cmd:String) = {
+    def getChannel(cmd: String) = {
       if (jschexecchannel == null || jschexecchannel.isClosed() || jschexecchannel.isEOF()) {
-        if (jschexecchannel!=null) close()
+        if (jschexecchannel != null) close()
         var connected = false
         var retryCount = ssh.options.retryCount
         while (retryCount > 0 && !connected) {
           try {
             jschexecchannel = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
             jschexecchannel.setCommand(cmd.getBytes())
-            
+
             jschStdoutStream = jschexecchannel.getInputStream()
             jschStderrStream = jschexecchannel.getErrStream()
-//            jschStdoutStream  = new PipedInputStream(32*1024)
-//            jschStderrStream  = new PipedInputStream(32*1024)
-//            jschexecchannel.setErrStream(new PipedOutputStream(jschStderrStream), true)
-//            jschexecchannel.setOutputStream(new PipedOutputStream(jschStdoutStream), true)
-            
+            jschStdinStream = jschexecchannel.getOutputStream()
             jschexecchannel.connect(ssh.options.connectTimeout)
+
             connected = true
           } catch {
             case e =>
-              try { jschexecchannel.disconnect} catch { case _ => } finally { jschexecchannel = null }
+              e.printStackTrace()
+              try { jschexecchannel.disconnect } catch { case _ => } finally { jschexecchannel = null }
               retryCount -= 1
               if (retryCount > 0) Thread.sleep(ssh.options.retryDelay)
               else {
@@ -185,66 +179,62 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       }
       jschexecchannel
     }
-    
-    def run(cmd:String, clientActor:Actor) = {
-      val channel = getChannel(cmd)
-      val stdout  = InputStreamThread(channel, jschStdoutStream, clientActor, StandardOutputMessage(_))
-      val stderr  = InputStreamThread(channel, jschStderrStream, clientActor, StandardErrorMessage(_))
-      val stdin   = OutputStreamActor(channel, channel.getOutputStream())
-      stdin
+
+    val channel = getChannel(cmd)
+    val stdout = InputStreamThread(channel, jschStdoutStream, clientActor, StandardOutputMessage(_), StandardOutputClosed(_))
+    val stderr = InputStreamThread(channel, jschStderrStream, clientActor, StandardErrorMessage(_), StandardErrorClosed(_))
+
+    start()
+
+    def act() {
+      loop {
+        receive {
+          case str: String => jschStdinStream.write(str.getBytes())
+        }
+      }
     }
-    
-    
-    class InputStreamThread(channel:ChannelExec, input:InputStream, clientActor:Actor, msgBuilder:(String)=>OutputMessage) extends Thread {
+
+    class InputStreamThread(channel: ChannelExec, input: InputStream, clientActor: Actor, msgBuilder: (String) => OutputMessage, endBuilder: (String)=> OutputMessage) extends Thread {
       override def run() {
-        val bufsize = 16*1024
-    	val charset = Charset.forName("ISO-8859-15")
-    	val binput  = new BufferedInputStream(input)
-        val bytes   = Array.ofDim[Byte](bufsize)
-    	val buffer  = ByteBuffer.allocate(bufsize)
-    	do {
-    	  val available = binput.available()
-    	  val howmany   = binput.read(bytes, 0, if (available < bufsize) available else bufsize)
-    	  if (howmany>0) {
-    	    buffer.put(bytes, 0, howmany)
-    	    buffer.flip()
-    	    val cbOut = charset.decode(buffer)
-    	    println("==>"+cbOut.toString())
-    	  }
-    	  println("avail=%d read=%d eof=%s closed=%s".format(available, howmany, channel.isEOF().toString(), channel.isClosed().toString))
-    	  Thread.sleep(1000)
-    	} while(/*!channel.isEOF() && !channel.isClosed()*/ true)
-    	println("CLOSED")
+        val bufsize = 16 * 1024
+        val charset = Charset.forName("ISO-8859-15")
+        val binput = new BufferedInputStream(input)
+        val bytes = Array.ofDim[Byte](bufsize)
+        val buffer = ByteBuffer.allocate(bufsize)
+        val appender = new StringBuilder()
+        do {
+          val available = binput.available()
+          val howmany = binput.read(bytes, 0, if (available < bufsize) available else bufsize)
+          if (howmany > 0) {
+            buffer.put(bytes, 0, howmany)
+            buffer.flip()
+            val cbOut = charset.decode(buffer)
+            buffer.compact()
+            appender.append(cbOut.toString())
+            var s=0
+            var e=0
+            do {
+              e = appender.indexOf("\n",s)
+              if (e>=0) {
+                clientActor ! msgBuilder(appender.substring(s,e))
+                s = e + 1
+              }
+            } while(e != -1)
+            appender.delete(0,s)
+          }
+        } while (!channel.isEOF() && !channel.isClosed())
+        if (appender.size>0) clientActor ! msgBuilder(appender.toString())
+        clientActor ! endBuilder("Close")
       }
     }
     object InputStreamThread {
-      def apply(channel:ChannelExec, input:InputStream, clientActor:Actor, msgBuilder:(String)=>OutputMessage) = { 
-        val newthread = new InputStreamThread(channel, input, clientActor, msgBuilder)
+      def apply(channel: ChannelExec, input: InputStream, clientActor: Actor, msgBuilder: (String) => OutputMessage, endBuilder: (String)=> OutputMessage) = {
+        val newthread = new InputStreamThread(channel, input, clientActor, msgBuilder, endBuilder)
         newthread.start()
         newthread
       }
     }
-    
-    class OutputStreamActor(channel:ChannelExec, output:OutputStream) extends Actor {
-      val pout = new java.io.PrintStream(output)
-      def act() {
-        loop {
-          receive {
-          	case str:String =>  pout.println(str)
-          }
-        }
-      }
-    }
-    
-    object OutputStreamActor {
-      def apply(channel:ChannelExec, output:OutputStream) = {
-        val newactor = new OutputStreamActor(channel, output)
-        newactor.start()
-        newactor
-      }
-    }
-    
-    
+
     def close() = {
       if (jschexecchannel != null) {
         jschexecchannel.disconnect
@@ -253,7 +243,6 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
   }
 
-  
   class SSHFtp {
     private var jschftpchannel: ChannelSftp = null
 
@@ -332,7 +321,6 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
 
   }
-
 
   class SSHShell(timeout: Long = 100000L) {
 

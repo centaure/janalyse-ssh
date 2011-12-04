@@ -1,6 +1,6 @@
 name := "Janalyse-SSH"
 
-version := "0.1"
+version := "0.5"
 
 scalaVersion := "2.9.1"
 

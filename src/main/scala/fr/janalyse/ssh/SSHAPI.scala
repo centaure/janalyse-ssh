@@ -26,6 +26,8 @@ import java.io._
 import scala.collection.generic.CanBuildFrom
 import java.nio.charset.Charset
 import java.nio.ByteBuffer
+import scala.util.{Properties=>SP}
+import java.io.File.{separator=>FS, pathSeparator=>PS}
 
 trait SSHAutoClose {
   // Automatic resource liberation
@@ -79,28 +81,34 @@ case class StandardOutputClosed(line:String="Finished") extends OutputMessage
 case class StandardErrorClosed(line:String="Finished") extends OutputMessage
 
 case class SSHOptions(
-  username: String,
-  password: String = "",
-  passphrase: String = "",
+  username: String = util.Properties.userName,
+  password: Option[String] = None,
+  passphrase: Option[String] = None,
   host: String = "localhost",
   port: Int = 22,
   connectTimeout: Int = 30000,
   retryCount: Int = 5,
-  retryDelay: Int = 2000)
+  retryDelay: Int = 2000,
+  sshUserDir: String = SP.userHome+FS+".ssh",
+  charset:String = "ISO-8859-15"
+  )
 
 object SSH extends SSHAutoClose {
-  def ssh[T](
-    username: String,
-    password: String = "",
-    passphrase: String = "",
+  def connect[T](
+    username: String = util.Properties.userName,
+    password: Option[String] = None,
+    passphrase: Option[String] = None,
     host: String = "localhost",
     port: Int = 22,
     connectTimeout: Int = 30000)(withssh: (SSH) => T) = usingSSH(new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout))) {
     withssh(_)
   }
-  implicit def toCommand(cmd: String) = new SSHCommand(cmd)
-  implicit def toBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
-  implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)
+  def connect[T](options:SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
+    withssh(_)
+  }
+  //implicit def toCommand(cmd: String) = new SSHCommand(cmd)
+  //implicit def toBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
+  //implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
 
 class SSH(val options: SSHOptions) extends SSHAutoClose {
@@ -117,9 +125,25 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   def run(cmd: String, clientActor: Actor) = new SSHExec(cmd, clientActor)
 
   def execute(cmd: SSHCommand) = shell { _ execute cmd.cmd }
+  
+  def execute(cmds: SSHBatch) = shell { _ batch cmds.cmdList }
+  
+  def executeAndTrim(cmd: SSHCommand) = execute(cmd).trim()
 
-  def execute(cmds: List[String]) = shell { _ batch cmds }
+  def executeAndTrim(cmds: SSHBatch) = execute(cmds.cmdList) map {_.trim}
 
+  def get(remoteFilename:String) = ssh.ftp { _ get remoteFilename }
+  
+  def getBytes(remoteFilename:String) = ssh.ftp { _ getBytes remoteFilename }
+
+  def put(data: String, remoteFilename:String) = ssh.ftp { _ put (data, remoteFilename) }
+  
+  def receive(remoteFilename:String, toLocalFilename: String) = ssh.ftp { _.receive(remoteFilename, toLocalFilename) }
+  
+  def send(fromLocalFilename: String, remoteFilename:String) = ssh.ftp { _.send(fromLocalFilename, remoteFilename)
+  }
+
+  
   def close() {
     if (jschsession != null) {
       jschsession.disconnect
@@ -130,9 +154,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   private def initSession = {
     if (jschsession == null || !jschsession.isConnected) {
       close
-      val home = scala.util.Properties.userHome
-      val idrsa = new File(home, ".ssh/id_rsa")
-      val iddsa = new File(home, ".ssh/id_dsa")
+      val idrsa = new File(options.sshUserDir, "id_rsa")
+      val iddsa = new File(options.sshUserDir, "id_dsa")
       if (idrsa.exists) jsch.addIdentity(idrsa.getAbsolutePath)
       if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
       jschsession = jsch.getSession(options.username, options.host, options.port)
@@ -197,7 +220,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     class InputStreamThread(channel: ChannelExec, input: InputStream, clientActor: Actor, msgBuilder: (String) => OutputMessage, endBuilder: (String)=> OutputMessage) extends Thread {
       override def run() {
         val bufsize = 16 * 1024
-        val charset = Charset.forName("ISO-8859-15")
+        val charset = Charset.forName(options.charset)
         val binput = new BufferedInputStream(input)
         val bytes = Array.ofDim[Byte](bufsize)
         val buffer = ByteBuffer.allocate(bufsize)
@@ -311,7 +334,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       channel.put(new FileInputStream(localFilename), remoteFilename)
     }
 
-    def getRaw(filename: String): Option[Array[Byte]] = {
+    def getBytes(filename: String): Option[Array[Byte]] = {
       try {
         Some(SSHTools.inputStream2ByteArray(channel.get(filename)))
       } catch {
@@ -383,6 +406,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       sendCommand(cmd)
       getResponse(timeout)
     }
+    
+    def executeAndTrim(cmd:String):String = execute(cmd).trim()
 
     private def sendCommand(cmd: String): Unit = {
       inout.write(cmd.getBytes)
@@ -436,9 +461,9 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
  *   (Configuration au niveau du serveur SSH) SSI on n'implemente pas "promptKeyboardInteractive"
  *
  */
-case class SSHUserInfo(password: String, passphrase: String = "") extends UserInfo with UIKeyboardInteractive {
-  override def getPassphrase() = passphrase
-  override def getPassword() = password
+case class SSHUserInfo(password: Option[String]=None, passphrase: Option[String] = None) extends UserInfo with UIKeyboardInteractive {
+  override def getPassphrase() = passphrase getOrElse ""
+  override def getPassword() = password getOrElse ""
   override def promptPassword(message: String) = true
   override def promptPassphrase(message: String) = false
   override def promptYesNo(message: String) = true

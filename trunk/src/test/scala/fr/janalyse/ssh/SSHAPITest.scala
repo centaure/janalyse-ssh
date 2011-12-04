@@ -120,7 +120,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       val fmax = ssh get "/proc/sys/fs/file-max"
       ssh.shell { sh => // For higher performances
         val hostname = sh.executeAndTrim("hostname")
-        val files = sh.execute("find /home")
+        val files = sh.execute("find /usr/lib/")
       }
       ssh.ftp { ftp => // For higher performances
         val cpuinfo = ftp.get("/proc/cpuinfo")

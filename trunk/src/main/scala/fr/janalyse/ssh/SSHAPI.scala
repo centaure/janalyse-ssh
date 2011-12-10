@@ -393,9 +393,10 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
 
     def close() = {
-      inout.close
-      inin.close
-      channel.disconnect
+      channel.disconnect()
+      inout.close()
+      inin.close()
+      bout.close()
     }
 
     def executeAndContinue(cmd: String, cont: String => Unit): Unit = {
@@ -449,6 +450,9 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
             lines = List[String]()
             line = ""
           }
+      }
+      override def close() {
+        super.close()
       }
     }
   }

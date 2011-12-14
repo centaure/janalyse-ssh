@@ -1,5 +1,5 @@
 #!/bin/sh
-exec java -jar ../target/janalyse-ssh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
+exec java -jar ../target/jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
 !#
 
 import fr.janalyse.ssh._

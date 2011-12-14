@@ -10,7 +10,7 @@ scalaVersion := "2.9.1"
 
 mainClass in assembly := Some("scala.tools.nsc.MainGenericRunner")
 
-jarName in assembly := "janalyse-ssh.jar"
+jarName in assembly := "jassh.jar"
 
 libraryDependencies <++=  scalaVersion { sv =>
        ("org.scala-lang" % "jline"           % sv  % "compile") ::

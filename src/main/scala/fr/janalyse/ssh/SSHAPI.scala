@@ -347,18 +347,10 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   class SSHShell(timeout: Long = 100000L) {
 
-    def batch[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
-      var builder = bf.apply()
-      try {
-        for (cmd <- commands) builder += (execute(cmd))
-      }
-      builder.result
-    }
-
     val prompt = """-PRMT-: """
     val inout = new PipedOutputStream
     val inin = new PipedInputStream(inout)
-    val bout = new MyOut(self)
+    val bout = new MyOut(/*self*/)
 
     val channel = {
       var channel: ChannelShell = null
@@ -392,6 +384,14 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       channel
     }
 
+    def batch[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
+      var builder = bf.apply()
+      try {
+        for (cmd <- commands) builder += (execute(cmd))
+      }
+      builder.result
+    }
+
     def close() = {
       channel.disconnect()
       inout.close()
@@ -404,6 +404,15 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
 
     def execute(cmd: String, timeout: Long = timeout): String = {
+      def getResponse(timeout: Long = timeout, breaktry: Int = 5): String = {
+        receiveWithin(timeout) {
+          case TIMEOUT => // Sending Break command ctrl-c
+            inout.write(28.toChar.toString.getBytes)
+            if (breaktry > 0) getResponse(timeout, breaktry - 1) else "FAILED TO BREAK"
+          case v @ _ => v.toString
+        }
+      }
+      bout ! self
       sendCommand(cmd)
       getResponse(timeout)
     }
@@ -415,7 +424,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       inout.write("\n".getBytes)
       inout.flush()
     }
-
+/*
     private def getResponse(timeout: Long = timeout, breaktry: Int = 5): String = {
       receiveWithin(timeout) {
         case TIMEOUT => // Sending Break command ctrl-c
@@ -424,9 +433,23 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
         case v @ _ => v.toString
       }
     }
-
-    // ATTENTION Appelé par un thread tiers (appartenant à jsch)
-    class MyOut(caller: Actor) extends OutputStream {
+  */
+    
+    
+    // Warning, MyOut method are called by an external thread belonging to JSCH library
+    class MyOut(/*caller: Actor*/) extends OutputStream with DaemonActor {
+      start
+      
+      def act() = {
+        var asker:Option[Actor]=None
+        loop {
+          receive {
+            case x:String => asker map {_ ! x}
+            case respondTo:Actor => asker = Some(respondTo)
+          }
+        }
+      }
+      
       var boot = true // Amorçage réalisé une fois le prompt effectivement modifié, on ignore tout ce qui a pu etre réalisé précédement
       var waitFirstPrompt = true // On attend la première apparition du prompt, on ignore ce qui a pu se passer précédemment
       var lines = List[String]()
@@ -445,7 +468,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
           if (!boot && (line endsWith prompt)) {
             //if (!waitFirstPrompt) {
             lines = lines :+ line.dropRight(prompt.size)
-            caller ! (lines.tail mkString "\n")
+            //caller ! (lines.tail mkString "\n")
+            this ! (lines.tail mkString "\n")
             //} else waitFirstPrompt=false
             lines = List[String]()
             line = ""

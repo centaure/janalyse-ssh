@@ -5,20 +5,6 @@ exec java -jar ../target/jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "
 
 import scala.actors._
 import Actor._
-/*
-val a = new DaemonActor {
-	start
-	def act() = {
-		loop {
-			receive {
-				case x => println("say : "+x.toString)
-			}
-		}
-	}
-}
-
-a ! "Hello you"
-*/
 
 import fr.janalyse.ssh._
 SSH.connect(host = "localhost", username = "test") { ssh =>
@@ -37,6 +23,3 @@ SSH.connect(host = "localhost", username = "test") { ssh =>
   executor.close
 }
 
-
-Thread.sleep(500)
-println("Done")

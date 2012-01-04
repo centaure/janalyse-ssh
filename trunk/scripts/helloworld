@@ -8,4 +8,3 @@ SSH.connect(host="localhost", username="test") { ssh =>
   println(ssh.execute("""echo -n "Hello World from `hostname`" """))
 }
 
-//System.exit(0)

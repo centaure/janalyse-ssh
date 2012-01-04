@@ -83,7 +83,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
   // ---------------------------------------------------------------------------
-  ignore("Start a remote process in background") {
+  test("Start a remote process in background") {
     import fr.janalyse.ssh.SSH
     SSH.connect(username = "test") { implicit ssh =>
 
@@ -113,7 +113,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   // ---------------------------------------------------------------------------
-  ignore("Usage case example - for tutorial") {
+  test("Usage case example - for tutorial") {
     import fr.janalyse.ssh.SSH
     SSH.connect(host = "localhost", username = "test") { ssh =>
       val uname = ssh executeAndTrim "uname -a"
@@ -138,7 +138,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
           }
         }
       }
-      val executor = ssh.run("vmstat 1 10", receiver)
+      val executor = ssh.run("vmstat 1 3", receiver)
       receive {case _ => }
       executor.close()
     }
@@ -174,8 +174,6 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     
     stdout.toString.contains("20") should equal(true)
     
-    proc.destroy()
-    
     proc.exitValue should equal (0)
     
   }
@@ -183,6 +181,9 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
 }
 
 /*
+ *  THE FOLLOWING PROBLEM HAS BEEN SOLVED BY REMOVING messages sending from external threads... 
+ *  from out of actor context.
+ * 
 Process hangs on :
  
 Name: main
@@ -216,5 +217,8 @@ object SubProcessTest {
       println(ssh execute "expr 10 + 10")
     }
   }
+  
+  // ---------------------------------------------------------------------------
+
 }
 

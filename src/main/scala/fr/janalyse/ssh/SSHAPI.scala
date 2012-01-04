@@ -220,8 +220,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       }
     }
 
-    class InputStreamThread(channel: ChannelExec, input: InputStream, clientActor: Actor, msgBuilder: (String) => OutputMessage, endBuilder: (String)=> OutputMessage) extends Thread {
-      override def run() {
+    class InputStreamThread(channel: ChannelExec, input: InputStream, clientActor: Actor, msgBuilder: (String) => OutputMessage, endBuilder: (String)=> OutputMessage) extends Actor {
+      def act() {
         val bufsize = 16 * 1024
         val charset = Charset.forName(options.charset)
         val binput = new BufferedInputStream(input)
@@ -460,11 +460,17 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
         case _ =>
           line += b.toChar
           if (!boot && (line endsWith prompt)) {
-            //if (!waitFirstPrompt) {
             lines = lines :+ line.dropRight(prompt.size)
-            //caller ! (lines.tail mkString "\n")
-            this ! (lines.tail mkString "\n")
-            //} else waitFirstPrompt=false
+            // ------------
+            // WARNING : Because write method is called out of the scala context, called from JSCH java thread
+            // it is better to create a temporary actor which will send the message in a scala context thus
+            // avoiding the java process entering in a forever wait instead of exiting ! 
+            val caller=this
+            val data2send=(lines.tail mkString "\n")
+            actor {
+              this ! data2send
+            }
+            // ------------
             lines = List[String]()
             line = ""
           }

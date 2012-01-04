@@ -36,7 +36,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     (end - begin, result)
   }
 
-  // ---------------------------------------------------------------------------
+  //==========================================================================================================
   test("One line exec with automatic resource close") {
     connect(username = "test") { _ execute "expr 1 + 1" } should equal("2\n")
     connect(username = "test") { _ executeAndTrim "expr 1 + 1" } should equal("2")
@@ -44,7 +44,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     val year = connect(username = "test") { _ executeAndTrim "expr 1 + 10" toInt }
     year should equal(11)
   }
-  // ---------------------------------------------------------------------------
+  //==========================================================================================================
   test("Execution & file transferts within the same ssh session (autoclose)") {
     connect(username = "test") { ssh =>
       val msg = ssh execute "/bin/echo -n 'Hello %s'".format(util.Properties.userName)
@@ -60,7 +60,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   val howmany=100
-  // ---------------------------------------------------------------------------
+  //==========================================================================================================
   ignore("Bad performances obtained without persistent schell ssh channel (autoclose)") {
     connect(username = "test") { ssh =>
       val remotedate = ssh execute "date"
@@ -70,7 +70,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       info("Performance without channel persistency : %.1f cmd/s".format(throughput))
     }
   }
-  // ---------------------------------------------------------------------------
+  //==========================================================================================================
   test("Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
     connect(username = "test") {
       _.shell { sh =>
@@ -82,7 +82,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       }
     }
   }
-  // ---------------------------------------------------------------------------
+  //==========================================================================================================
   test("Start a remote process in background") {
     import fr.janalyse.ssh.SSH
     SSH.connect(username = "test") { implicit ssh =>
@@ -112,7 +112,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
 
-  // ---------------------------------------------------------------------------
+  //==========================================================================================================
   test("Usage case example - for tutorial") {
     import fr.janalyse.ssh.SSH
     SSH.connect(host = "localhost", username = "test") { ssh =>
@@ -144,7 +144,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
 
-  // ---------------------------------------------------------------------------
+  //==========================================================================================================
   ignore("SSHAPI process must exit naturally, when no operation is in progress") {
     import collection.JavaConversions._
     import java.io.File.{separator=>FS, pathSeparator=>PS}
@@ -177,8 +177,15 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     proc.exitValue should equal (0)
     
   }
+  //==========================================================================================================
 
+  
 }
+
+
+
+
+
 
 /*
  *  THE FOLLOWING PROBLEM HAS BEEN SOLVED BY REMOVING messages sending from external threads... 
@@ -218,7 +225,5 @@ object SubProcessTest {
     }
   }
   
-  // ---------------------------------------------------------------------------
-
 }
 

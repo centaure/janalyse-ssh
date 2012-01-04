@@ -59,7 +59,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
 
-  val howmany=30
+  val howmany=100
   // ---------------------------------------------------------------------------
   ignore("Bad performances obtained without persistent schell ssh channel (autoclose)") {
     connect(username = "test") { ssh =>
@@ -107,12 +107,13 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
           x.zipWithIndex map { case (l, i) => info("%d : %s".format(i, l)) }
           x.size should equal(7)
       }
-
+      
+      executor.close()
     }
   }
 
   // ---------------------------------------------------------------------------
-  test("Usage case example - for tutorial") {
+  ignore("Usage case example - for tutorial") {
     import fr.janalyse.ssh.SSH
     SSH.connect(host = "localhost", username = "test") { ssh =>
       val uname = ssh executeAndTrim "uname -a"
@@ -139,32 +140,44 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       }
       val executor = ssh.run("vmstat 1 10", receiver)
       receive {case _ => }
+      executor.close()
     }
   }
 
   // ---------------------------------------------------------------------------
-  test("SSHAPI process must exit naturally, when no operation is in progress") {
+  ignore("SSHAPI process must exit naturally, when no operation is in progress") {
+    import collection.JavaConversions._
     import java.io.File.{separator=>FS, pathSeparator=>PS}
     import scala.sys.process._
     val rt = Runtime.getRuntime()
     
     val classpath  = Properties.javaClassPath+PS+"/opt/scala/"+FS+"lib"+FS+"scala-library.jar"
-    //println(classpath)
+    
     val env        = System.getenv()
+    val cwd        = new File(".")
     val javacmd    = Properties.javaHome+FS+"bin"+FS+"java"
     val cmd        = javacmd::"-classpath"::classpath::"fr.janalyse.ssh.SubProcessTest"::Nil
-    val subprocbd  = Process(cmd, None)
+    val subprocbd  = Process(cmd, Some(cwd), env.toList:_*)
     var stdout     = StringBuilder.newBuilder
     var stderr     = StringBuilder.newBuilder
     val proclogger = ProcessLogger(stdout.append(_), stderr.append(_))
     val proc       = subprocbd.run(proclogger)
     Thread.sleep(2000)
+
+    val err=stderr.toString()
     
-    //subprocbd.hasExitValue should equal(true)
+    if (err.size>0) info(err)
     
-    //stdout.toString.contains("20") should equal(true)
+    err should have length(0)
     
-    //proc.exitValue should equal (0)
+    subprocbd.hasExitValue should equal(true)
+    
+    stdout.toString.contains("20") should equal(true)
+    
+    proc.destroy()
+    
+    proc.exitValue should equal (0)
+    
   }
 
 }

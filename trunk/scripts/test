@@ -34,6 +34,7 @@ SSH.connect(host = "localhost", username = "test") { ssh =>
   }
   val executor = ssh.run("vmstat 1 10", receiver)
   receive {case _ => }
+  executor.close
 }
 
 

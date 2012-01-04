@@ -164,8 +164,10 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
     jschsession
   }
+  
+  case class EndMessage
 
-  class SSHExec(cmd: String, clientActor: Actor) extends Actor {
+  class SSHExec(cmd: String, clientActor: Actor) extends DaemonActor {
     private var jschexecchannel: ChannelExec = _
     private var jschStdoutStream: InputStream = _
     private var jschStderrStream: InputStream = _
@@ -211,8 +213,9 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
     def act() {
       loop {
-        receive {
+        react {
           case str: String => jschStdinStream.write(str.getBytes())
+          case _:EndMessage => exit()
         }
       }
     }
@@ -259,6 +262,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
 
     def close() = {
+      this ! EndMessage
       if (jschexecchannel != null) {
         jschexecchannel.disconnect
         jschexecchannel = null
@@ -424,28 +428,18 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       inout.write("\n".getBytes)
       inout.flush()
     }
-/*
-    private def getResponse(timeout: Long = timeout, breaktry: Int = 5): String = {
-      receiveWithin(timeout) {
-        case TIMEOUT => // Sending Break command ctrl-c
-          inout.write(28.toChar.toString.getBytes)
-          if (breaktry > 0) getResponse(timeout, breaktry - 1) else "FAILED TO BREAK"
-        case v @ _ => v.toString
-      }
-    }
-  */
-    
     
     // Warning, MyOut method are called by an external thread belonging to JSCH library
-    class MyOut(/*caller: Actor*/) extends OutputStream with DaemonActor {
+    class MyOut extends OutputStream with DaemonActor {
       start
       
       def act() = {
         var asker:Option[Actor]=None
         loop {
-          receive {
+          react {
             case x:String => asker map {_ ! x}
             case respondTo:Actor => asker = Some(respondTo)
+            case _:EndMessage => exit()
           }
         }
       }
@@ -476,6 +470,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
           }
       }
       override def close() {
+        this ! EndMessage
         super.close()
       }
     }

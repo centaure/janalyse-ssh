@@ -8,7 +8,13 @@ organizationHomepage := Some(new URL("http://www.janalyse.fr"))
 
 scalaVersion := "2.9.1"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "1.6.1" % "test"
+crossScalaVersions := Seq("2.8.1", "2.8.2", "2.9.1")
+
+libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
+  val versionMap = Map("2.8.1" -> "1.5.1",   "2.8.2" -> "1.5.1",   "2.9.1" -> "1.6.1")
+  val testVersion = versionMap.getOrElse(sv, error("Unsupported Scala version " + sv))
+  deps :+ ("org.scalatest" %% "scalatest" % testVersion % "test")
+}
 
 libraryDependencies += "com.jcraft" % "jsch" % "0.1.45" % "compile"
 

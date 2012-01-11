@@ -144,6 +144,22 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
 
+  test("Simplified persistent ssh shell usage") {
+    SSH.shell(host = "localhost", username = "test") { sh =>
+      sh.execute("ls")
+      sh.execute("uname")
+    }
+  }
+
+  test("Simplified persistent ssh shell and ftp usage") {
+    SSH.shellAndFtp(host = "localhost", username = "test") { (sh, ftp) =>
+      sh.execute("ls")
+      sh.execute("uname")
+      ftp.get("/proc/stat")
+      ftp.get("/proc/vmstat")
+    }
+  }
+
   //==========================================================================================================
   ignore("SSHAPI process must exit naturally, when no operation is in progress") {
     import collection.JavaConversions._

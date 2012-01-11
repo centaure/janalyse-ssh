@@ -100,7 +100,7 @@ object SSH extends SSHAutoClose {
     passphrase: Option[String] = None,
     host: String = "localhost",
     port: Int = 22,
-    connectTimeout: Int = 30000)(withssh: (SSH) => T) = usingSSH(new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout))) {
+    connectTimeout: Int = 30000)(withssh: (SSH) => T):T = usingSSH(new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout))) {
     withssh(_)
   }
   def connect[T](options:SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
@@ -112,7 +112,7 @@ object SSH extends SSHAutoClose {
     passphrase: Option[String] = None,
     host: String = "localhost",
     port: Int = 22,
-    connectTimeout: Int = 30000)(withsh: (SSHShell) => T) = shell[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withsh)
+    connectTimeout: Int = 30000)(withsh: (SSHShell) => T):T = shell[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withsh)
   
   def shell[T](options:SSHOptions)(withsh: (SSHShell) => T) = usingSSH(new SSH(options)) {ssh =>
     ssh.shell {sh => withsh(sh)}
@@ -123,7 +123,7 @@ object SSH extends SSHAutoClose {
     passphrase: Option[String] = None,
     host: String = "localhost",
     port: Int = 22,
-    connectTimeout: Int = 30000)(withshftp: (SSHShell,SSHFtp) => T) = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withshftp)
+    connectTimeout: Int = 30000)(withshftp: (SSHShell,SSHFtp) => T):T = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withshftp)
   
   def shellAndFtp[T](options:SSHOptions)(withshftp: (SSHShell,SSHFtp) => T) = usingSSH(new SSH(options)) {ssh =>
     ssh.shell {sh => ssh.ftp { ftp =>withshftp(sh,ftp)}}

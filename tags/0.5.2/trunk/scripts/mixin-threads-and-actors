@@ -1,0 +1,21 @@
+#!/bin/sh
+exec scala -nocompdaemon -usejavacp -savecompiled "$0" "$@"
+!#
+
+import scala.actors._
+import Actor._
+
+val me = self
+
+val th = new Thread {
+  override def run() {
+    me ! "Hello you"
+  }
+}
+
+th.start
+
+receive {
+  case msg:String => println(msg)
+}
+

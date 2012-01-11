@@ -106,13 +106,35 @@ object SSH extends SSHAutoClose {
   def connect[T](options:SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
     withssh(_)
   }
+  def shell[T](
+    username: String = util.Properties.userName,
+    password: Option[String] = None,
+    passphrase: Option[String] = None,
+    host: String = "localhost",
+    port: Int = 22,
+    connectTimeout: Int = 30000)(withsh: (SSHShell) => T) = shell[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withsh)
+  
+  def shell[T](options:SSHOptions)(withsh: (SSHShell) => T) = usingSSH(new SSH(options)) {ssh =>
+    ssh.shell {sh => withsh(sh)}
+  }
+  def shellAndFtp[T](
+    username: String = util.Properties.userName,
+    password: Option[String] = None,
+    passphrase: Option[String] = None,
+    host: String = "localhost",
+    port: Int = 22,
+    connectTimeout: Int = 30000)(withshftp: (SSHShell,SSHFtp) => T) = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withshftp)
+  
+  def shellAndFtp[T](options:SSHOptions)(withshftp: (SSHShell,SSHFtp) => T) = usingSSH(new SSH(options)) {ssh =>
+    ssh.shell {sh => ssh.ftp { ftp =>withshftp(sh,ftp)}}
+  }
   //implicit def toCommand(cmd: String) = new SSHCommand(cmd)
   //implicit def toBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
   //implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
 
 class SSH(val options: SSHOptions) extends SSHAutoClose {
-  private val ssh = this
+  private implicit val ssh = this
   private val jsch = new JSch
   var jschsession: Session = initSession
 
@@ -130,7 +152,11 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   
   def executeAndTrim(cmd: SSHCommand) = execute(cmd).trim()
 
+  def executeAndTrimSplit(cmd: SSHCommand) = execute(cmd).trim().split("\r?\n")
+
   def executeAndTrim(cmds: SSHBatch) = execute(cmds.cmdList) map {_.trim}
+
+  def executeAndTrimSplit(cmds: SSHBatch) = execute(cmds.cmdList) map {_.trim.split("\r?\n")}
 
   def get(remoteFilename:String) = ssh.ftp { _ get remoteFilename }
   
@@ -165,10 +191,14 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     jschsession
   }
   
+}
+
+
   case class EndMessage
 
-  class SSHExec(cmd: String, clientActor: Actor) extends DaemonActor {
-    private var jschexecchannel: ChannelExec = _
+
+  class SSHExec(cmd: String, clientActor: Actor) (implicit ssh:SSH) extends DaemonActor {
+    private var jschexecchannel: ChannelExec  = _
     private var jschStdoutStream: InputStream = _
     private var jschStderrStream: InputStream = _
     private var jschStdinStream: OutputStream = _
@@ -223,7 +253,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     class InputStreamThread(channel: ChannelExec, input: InputStream, clientActor: Actor, msgBuilder: (String) => OutputMessage, endBuilder: (String)=> OutputMessage) extends Actor {
       def act() {
         val bufsize = 16 * 1024
-        val charset = Charset.forName(options.charset)
+        val charset = Charset.forName(ssh.options.charset)
         val binput = new BufferedInputStream(input)
         val bytes = Array.ofDim[Byte](bufsize)
         val buffer = ByteBuffer.allocate(bufsize)
@@ -270,7 +300,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
   }
 
-  class SSHFtp {
+  class SSHFtp (implicit ssh:SSH) {
     private var jschftpchannel: ChannelSftp = null
 
     def channel = {
@@ -349,7 +379,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   }
 
-  class SSHShell(timeout: Long = 100000L) {
+  class SSHShell(timeout: Long = 100000L) (implicit ssh:SSH) {
 
     val prompt = """-PRMT-: """
     val inout = new PipedOutputStream
@@ -423,6 +453,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     
     def executeAndTrim(cmd:String):String = execute(cmd).trim()
 
+    def executeAndTrimSplit(cmd:String):Array[String] = execute(cmd).trim().split("\r?\n")
+
     private def sendCommand(cmd: String): Unit = {
       inout.write(cmd.getBytes)
       inout.write("\n".getBytes)
@@ -481,7 +513,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       }
     }
   }
-}
+//}
 
 // =============================================================================
 

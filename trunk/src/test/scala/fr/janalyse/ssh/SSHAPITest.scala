@@ -159,6 +159,14 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       ftp.get("/proc/vmstat")
     }
   }
+  
+  test("simplified usage with sshOptions as Option") {
+    val cnxinfo = Some(SSHOptions(host="localhost", username="test"))
+    val stat = SSH.ftp(cnxinfo) {_.get("/proc/stat")}
+    
+    stat should not equal(None)
+    stat.get.size should be >(0)
+  }
 
   //==========================================================================================================
   ignore("SSHAPI process must exit naturally, when no operation is in progress") {

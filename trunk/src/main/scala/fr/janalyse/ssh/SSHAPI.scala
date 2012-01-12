@@ -94,6 +94,7 @@ case class SSHOptions(
   )
 
 object SSH extends SSHAutoClose {
+  
   def connect[T](
     username: String = util.Properties.userName,
     password: Option[String] = None,
@@ -106,6 +107,12 @@ object SSH extends SSHAutoClose {
   def connect[T](options:SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
     withssh(_)
   }
+  def connect[T](someOptions:Option[SSHOptions])(withssh: (SSH) => Option[T]) = someOptions map { options => usingSSH(new SSH(options)) {
+	  withssh(_)
+  	}
+  }
+  
+  
   def shell[T](
     username: String = util.Properties.userName,
     password: Option[String] = None,
@@ -117,6 +124,23 @@ object SSH extends SSHAutoClose {
   def shell[T](options:SSHOptions)(withsh: (SSHShell) => T) = usingSSH(new SSH(options)) {ssh =>
     ssh.shell {sh => withsh(sh)}
   }
+  def shell[T](someOptions:Option[SSHOptions])(withsh: (SSHShell) => T) =  someOptions map {shell[T](_)(withsh)}
+  
+  def ftp[T](
+    username: String = util.Properties.userName,
+    password: Option[String] = None,
+    passphrase: Option[String] = None,
+    host: String = "localhost",
+    port: Int = 22,
+    connectTimeout: Int = 30000)(withftp: (SSHFtp) => T):T = ftp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withftp)
+  
+  def ftp[T](options:SSHOptions)(withftp: (SSHFtp) => T) = usingSSH(new SSH(options)) {ssh =>
+    ssh.ftp {ftp => withftp(ftp)}
+  }
+  def ftp[T](someOptions:Option[SSHOptions])(withftp: (SSHFtp) => T) = someOptions map { ftp[T](_)(withftp) }
+
+  
+  
   def shellAndFtp[T](
     username: String = util.Properties.userName,
     password: Option[String] = None,
@@ -128,6 +152,8 @@ object SSH extends SSHAutoClose {
   def shellAndFtp[T](options:SSHOptions)(withshftp: (SSHShell,SSHFtp) => T) = usingSSH(new SSH(options)) {ssh =>
     ssh.shell {sh => ssh.ftp { ftp =>withshftp(sh,ftp)}}
   }
+  def shellAndFtp[T](someOptions:Option[SSHOptions])(withshftp: (SSHShell,SSHFtp) => T) = someOptions map {shellAndFtp[T](_)(withshftp)}
+  
   //implicit def toCommand(cmd: String) = new SSHCommand(cmd)
   //implicit def toBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
   //implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)

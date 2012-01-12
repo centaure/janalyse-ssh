@@ -169,6 +169,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   //==========================================================================================================
+/*
   ignore("SSHAPI process must exit naturally, when no operation is in progress") {
     import collection.JavaConversions._
     import java.io.File.{separator=>FS, pathSeparator=>PS}
@@ -202,10 +203,10 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     
   }
   //==========================================================================================================
+*/
 
   
 }
-
 
 
 
@@ -241,13 +242,13 @@ scala.tools.nsc.MainGenericRunner.main(MainGenericRunner.scala)
  -Yrepl-sync : 
  */
 
-
+/*
 object SubProcessTest {
   def main(args:Array[String]) {
     connect(username = "test") {ssh => 
       println(ssh execute "expr 10 + 10")
     }
   }
-  
 }
+*/
 

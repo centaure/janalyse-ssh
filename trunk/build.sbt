@@ -16,7 +16,7 @@ libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
   deps :+ ("org.scalatest" %% "scalatest" % testVersion % "test")
 }
 
-libraryDependencies += "com.jcraft" % "jsch" % "0.1.45" % "compile"
+libraryDependencies += "com.jcraft" % "jsch" % "0.1.46" % "compile"
 
 libraryDependencies += "junit" % "junit" % "4.10" % "test"
 

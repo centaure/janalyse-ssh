@@ -86,29 +86,17 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   test("Start a remote process in background") {
     import fr.janalyse.ssh.SSH
     SSH.connect(username = "test") { implicit ssh =>
-
-      val tester = self
-      val receiver = actor {
-        var lines = List.empty[String]
-        loop {
-          react {
-            case e: StandardErrorMessage => info("STDERR" + e.line)
-            case e: StandardOutputMessage => lines = e.line :: lines
-            case _: StandardOutputClosed => tester ! lines.reverse; exit
-            case _: StandardErrorClosed =>
-          }
-        }
-      }
-
+      
+      var x=List.empty[String]
+      
+      def receiver(data:Option[String]) {data foreach {d => x = x :+ d} }
       val executor = ssh.run("vmstat 1 5", receiver)
 
-      receive {
-        case x: List[String] =>
-          x.zipWithIndex map { case (l, i) => info("%d : %s".format(i, l)) }
-          x.size should equal(7)
-      }
-      
-      executor.close()
+      Thread.sleep(6000)
+      executor.close
+
+      x.zipWithIndex map { case (l, i) => info("%d : %s".format(i, l)) }
+      x.size should equal(7)      
     }
   }
 
@@ -128,19 +116,10 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
         val meminfo = ftp.get("/proc/meminfo")
       }
       // output streaming
-      val caller = self
-      val receiver = actor {
-        loop {
-          react {
-            case e: StandardOutputMessage => println(e.line)
-            case _: StandardOutputClosed => caller ! "That's all folks"; exit
-            case _ =>
-          }
-        }
-      }
+      def receiver(data:Option[String]) {data foreach {println(_)}}
       val executor = ssh.run("vmstat 1 3", receiver)
-      receive {case _ => }
-      executor.close()
+
+      Thread.sleep(4000)
     }
   }
 

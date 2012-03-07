@@ -1,0 +1,8 @@
+JANALYSE-SSH
+
+0.6.0
+ - update jsch to 0.1.46
+ - update sbteclipse plugin to 2.0.0
+ - update sbtassembly plugin to 0.7.3
+ - background ssh execution API changes (run method)
+ - temporary hack to remove CPU overhead within run method

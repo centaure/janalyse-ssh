@@ -72,6 +72,7 @@ object SSHRemoteFile {
   implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
 
+/*
 trait OutputMessage {
   val line: String
 }
@@ -79,6 +80,8 @@ case class StandardOutputMessage(line: String) extends OutputMessage
 case class StandardErrorMessage(line: String) extends OutputMessage
 case class StandardOutputClosed(line:String="Finished") extends OutputMessage 
 case class StandardErrorClosed(line:String="Finished") extends OutputMessage
+*/
+
 
 case class SSHOptions(
   username: String = util.Properties.userName,
@@ -170,7 +173,9 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   def ftp[T](proc: (SSHFtp) => T) = usingSSH(new SSHFtp) { proc(_) }
 
-  def run(cmd: String, clientActor: Actor) = new SSHExec(cmd, clientActor)
+  def noerr(data:Option[String]) {}
+  
+  def run(cmd: String, out: Option[String]=> Any, err: Option[String]=> Any = noerr) = new SSHExec(cmd, out, err)
 
   def execute(cmd: SSHCommand) = shell { _ execute cmd.cmd }
   
@@ -223,7 +228,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   case class EndMessage
 
 
-  class SSHExec(cmd: String, clientActor: Actor) (implicit ssh:SSH) extends DaemonActor {
+  class SSHExec(cmd: String, out: Option[String]=> Any, err: Option[String]=> Any) (implicit ssh:SSH) extends DaemonActor {
     private var jschexecchannel: ChannelExec  = _
     private var jschStdoutStream: InputStream = _
     private var jschStderrStream: InputStream = _
@@ -262,21 +267,21 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
 
     val channel = getChannel(cmd)
-    val stdout = InputStreamThread(channel, jschStdoutStream, clientActor, StandardOutputMessage(_), StandardOutputClosed(_))
-    val stderr = InputStreamThread(channel, jschStderrStream, clientActor, StandardErrorMessage(_), StandardErrorClosed(_))
+    val stdout = InputStreamThread(channel, jschStdoutStream, out, err)
+    val stderr = InputStreamThread(channel, jschStderrStream, out, err)
 
     start()
 
     def act() {
       loop {
-        react {
+        receive {
           case str: String => jschStdinStream.write(str.getBytes())
           case _:EndMessage => exit()
         }
       }
     }
 
-    class InputStreamThread(channel: ChannelExec, input: InputStream, clientActor: Actor, msgBuilder: (String) => OutputMessage, endBuilder: (String)=> OutputMessage) extends Actor {
+    class InputStreamThread(channel: ChannelExec, input: InputStream, out: Option[String]=> Any, err: (Option[String])=> Any) extends Actor {
       def act() {
         val bufsize = 16 * 1024
         val charset = Charset.forName(ssh.options.charset)
@@ -286,32 +291,36 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
         val appender = new StringBuilder()
         do {
           val available = binput.available()
-          val howmany = binput.read(bytes, 0, if (available < bufsize) available else bufsize)
-          if (howmany > 0) {
-            buffer.put(bytes, 0, howmany)
-            buffer.flip()
-            val cbOut = charset.decode(buffer)
-            buffer.compact()
-            appender.append(cbOut.toString())
-            var s=0
-            var e=0
-            do {
-              e = appender.indexOf("\n",s)
-              if (e>=0) {
-                clientActor ! msgBuilder(appender.substring(s,e))
-                s = e + 1
-              }
-            } while(e != -1)
-            appender.delete(0,s)
+          if (available ==0) {
+        	  Thread.sleep(100) // TODO => REMOVE THIS !!!!!!!  temporary hack to avoid high cpu impact
+          } else {
+	          val howmany = binput.read(bytes, 0, if (available < bufsize) available else bufsize)
+	          if (howmany > 0) {
+	            buffer.put(bytes, 0, howmany)
+	            buffer.flip()
+	            val cbOut = charset.decode(buffer)
+	            buffer.compact()
+	            appender.append(cbOut.toString())
+	            var s=0
+	            var e=0
+	            do {
+	              e = appender.indexOf("\n",s)
+	              if (e>=0) {
+	                out(Some(appender.substring(s,e)))
+	                s = e + 1
+	              }
+	            } while(e != -1 )
+	            appender.delete(0,s)
+	          }
           }
         } while (!channel.isEOF() && !channel.isClosed())
-        if (appender.size>0) clientActor ! msgBuilder(appender.toString())
-        clientActor ! endBuilder("Close")
+        if (appender.size>0) out(Some(appender.toString()))
+        out(None)
       }
     }
     object InputStreamThread {
-      def apply(channel: ChannelExec, input: InputStream, clientActor: Actor, msgBuilder: (String) => OutputMessage, endBuilder: (String)=> OutputMessage) = {
-        val newthread = new InputStreamThread(channel, input, clientActor, msgBuilder, endBuilder)
+      def apply(channel: ChannelExec, input: InputStream, out: Option[String]=> Any, err: Option[String]=> Any) = {
+        val newthread = new InputStreamThread(channel, input, out, err)
         newthread.start()
         newthread
       }

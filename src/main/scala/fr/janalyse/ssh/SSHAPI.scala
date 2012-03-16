@@ -200,6 +200,9 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   def send(fromLocalFilename: String, remoteFilename:String) = ssh.ftp { _.send(fromLocalFilename, remoteFilename)
   }
 
+  def newShell = new SSHShell
+  
+  def newSftp = new SSHFtp
   
   def close() {
     if (jschsession != null) {
@@ -266,13 +269,12 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       jschexecchannel
     }
 
-    val channel = getChannel(cmd)
-    val stdout = InputStreamThread(channel, jschStdoutStream, out, err)
-    val stderr = InputStreamThread(channel, jschStderrStream, out, err)
-
     start()
 
     def act() {
+      val channel = getChannel(cmd)
+      val stdout = InputStreamThread(channel, jschStdoutStream, out, err)
+      val stderr = InputStreamThread(channel, jschStderrStream, out, err)
       loop {
         receive {
           case str: String => jschStdinStream.write(str.getBytes())
@@ -281,8 +283,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       }
     }
 
-    class InputStreamThread(channel: ChannelExec, input: InputStream, out: Option[String]=> Any, err: (Option[String])=> Any) extends Actor {
-      def act() {
+    class InputStreamThread(channel: ChannelExec, input: InputStream, out: Option[String]=> Any, err: (Option[String])=> Any) extends Thread {
+      override def run() {
         val bufsize = 16 * 1024
         val charset = Charset.forName(ssh.options.charset)
         val binput = new BufferedInputStream(input)
@@ -292,7 +294,9 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
         do {
           val available = binput.available()
           if (available ==0) {
-        	  Thread.sleep(100) // TODO => REMOVE THIS !!!!!!!  temporary hack to avoid high cpu impact
+            // TODO => looks like we can't remove that with traditionnal IO... missing selectors...
+            // But it enables us to Interrupt this loop...
+        	Thread.sleep(250) 
           } else {
 	          val howmany = binput.read(bytes, 0, if (available < bufsize) available else bufsize)
 	          if (howmany > 0) {

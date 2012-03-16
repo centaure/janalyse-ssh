@@ -1,5 +1,9 @@
 JANALYSE-SSH
 
+0.6.1
+ - Add new method to SSH : newShell & newSftp for user to manage themselves shell and sftp session
+ - Some internal changes to SSHExec class, in order to try to remove actor dependency. Mixing actors systems looks problematic
+ 
 0.6.0
  - update jsch to 0.1.46
  - update sbteclipse plugin to 2.0.0

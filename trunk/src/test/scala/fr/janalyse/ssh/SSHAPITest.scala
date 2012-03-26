@@ -58,9 +58,31 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       Source.fromFile("/tmp/sshtest.txt").getLines().next() should equal(msg)
     }
   }
-
-  val howmany=100
+  
   //==========================================================================================================
+  test("shell coherency check") {
+    SSH.shell(username="test") { sh=>
+	  (1 to 1000) foreach {i =>
+	  sh.executeAndTrim("echo ta"+i) should equal("ta"+i)
+	  sh.executeAndTrim("echo ga"+i) should equal("ga"+i)
+	  }
+    }
+  }
+
+  //==========================================================================================================
+  test("shell coherency check with long command lines") {
+    SSH.shell(username="test") { sh=>
+	  (1 to 30) foreach {i =>
+        def mkmsg(base:String) = base*100+i
+	    sh.executeAndTrim("echo %s".format(mkmsg("Z"))) should equal(mkmsg("Z"))
+	    sh.executeAndTrim("echo %s".format(mkmsg("ga"))) should equal(mkmsg("ga"))
+	    sh.executeAndTrim("echo %s".format(mkmsg("PXY"))) should equal(mkmsg("PXY"))
+        sh.executeAndTrim("echo %s".format(mkmsg("GLoups"))) should equal(mkmsg("GLoups"))
+	  }
+    }
+  }
+  //==========================================================================================================
+  val howmany=100
   ignore("Bad performances obtained without persistent schell ssh channel (autoclose)") {
     connect(username = "test") { ssh =>
       val remotedate = ssh execute "date"
@@ -92,7 +114,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       def receiver(data:Option[String]) {data foreach {d => x = x :+ d} }
       val executor = ssh.run("vmstat 1 5", receiver)
 
-      Thread.sleep(6000)
+      Thread.sleep(5000)
       executor.close
 
       x.zipWithIndex map { case (l, i) => info("%d : %s".format(i, l)) }

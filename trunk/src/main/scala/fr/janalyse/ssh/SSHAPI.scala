@@ -468,13 +468,14 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       }
 
       if (ssh.options.prompt.isEmpty) {
-        Thread.sleep(1000)
 	    sendCommand("""unset LS_COLORS """)
 	    sendCommand("""unset EDITOR""")
-//	      sendCommand("""COLUMNS=1000""")
 	    sendCommand("""set +o emacs""")
 	    sendCommand("""set +o vi""")
-	    sendCommand("""export PS1='%s'""".format(defaultPrompt))  // ok with ksh, bash, sh
+	    sendCommand("""PS1='%s'""".format(defaultPrompt))  // ok with ksh, bash, sh
+	    Thread.sleep(50)
+	    inout.write("\n".getBytes)
+	    inout.flush()
       }
       channel
     }
@@ -537,43 +538,37 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
           }
         }
       }
-      
-      var boot = true // Amorçage réalisé une fois le prompt effectivement modifié, on ignore tout ce qui a pu etre réalisé précédement
-      var waitFirstPrompt = true // On attend la première apparition du prompt, on ignore ce qui a pu se passer précédemment
       var lines = List[String]()
       var line = new StringBuilder(8192)
       var bootpromptcount=0
+      
       def write(b: Int) = b match {
         case 13 =>
         case 10 =>
-          if (boot) {
-        	val promptIndex = line.indexOf(prompt)
-            if (promptIndex != -1) {
-              bootpromptcount+=1
-              //if (line.indexOf(prompt, promptIndex+1)!= -1) bootpromptcount+=1 // the prompt two times in the same line
-              if (bootpromptcount>=2) boot = false // Do ready to receive inputs
-              lines = List(lines.last)
-            }
-          } else
-            lines = lines :+ line.toString()
-            line.clear()
+          lines = lines :+ line.toString()
+          line.clear()
         case _ =>
           line.append(b.toChar)
-          val promptIndex = line.indexOf(prompt)
-          if (!boot && promptIndex != -1) {
-            lines = lines :+ line.substring(0, promptIndex)
-            // ------------
-            // WARNING : Because write method is called out of the scala context, called from JSCH java thread
-            // it is better to create a temporary actor which will send the message in a scala context thus
-            // avoiding the java process entering in a forever wait instead of exiting ! 
-            val caller=this
-            val data2send=(lines.tail mkString "\n")
-            actor {
-              this ! data2send
+          if (line.endsWith(prompt)) {
+            bootpromptcount+=1
+            if (bootpromptcount>2) {
+              val promptIndex = line.size - prompt.size
+              if (promptIndex>0) lines = lines :+ line.substring(0, promptIndex)
+	          // ------------
+	          // WARNING : Because write method is called out of the scala context, called from JSCH java thread
+	          // it is better to create a temporary actor which will send the message in a scala context thus
+	          // avoiding the java process entering in a forever wait instead of exiting ! 
+	          val caller=this
+              //println(">>>%s<<<".format(lines.tail.mkString("//")))
+	          val data2send=(lines.tail mkString "\n")
+	          actor { this ! data2send }
+	          // ------------
+              lines = List.empty[String]
+              line.delete(0, promptIndex)
+            } else {
+              lines = List.empty[String]
+              line.clear()
             }
-            // ------------
-            lines = List.empty[String]
-            line.clear
           }
       }
       override def close() {
@@ -582,7 +577,13 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       }
     }
   }
-//}
+/*
+
+import fr.janalyse.ssh._
+val ssh=SSH(username="test", timeout=2000)
+val sh=ssh.newShell
+
+ */
 
 // =============================================================================
 

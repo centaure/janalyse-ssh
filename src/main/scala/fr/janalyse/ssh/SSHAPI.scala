@@ -89,7 +89,8 @@ case class SSHOptions(
   passphrase: Option[String] = None,
   host: String = "localhost",
   port: Int = 22,
-  connectTimeout: Int = 30000,
+  prompt: Option[String]=None,
+  timeout: Long = 30000,
   retryCount: Int = 5,
   retryDelay: Int = 2000,
   sshUserDir: String = SP.userHome+FS+".ssh",
@@ -104,7 +105,7 @@ object SSH extends SSHAutoClose {
     passphrase: Option[String] = None,
     host: String = "localhost",
     port: Int = 22,
-    connectTimeout: Int = 30000)(withssh: (SSH) => T):T = usingSSH(new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout))) {
+    timeout: Int = 30000)(withssh: (SSH) => T):T = usingSSH(new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout))) {
     withssh(_)
   }
   def connect[T](options:SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
@@ -122,7 +123,7 @@ object SSH extends SSHAutoClose {
     passphrase: Option[String] = None,
     host: String = "localhost",
     port: Int = 22,
-    connectTimeout: Int = 30000)(withsh: (SSHShell) => T):T = shell[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withsh)
+    timeout: Int = 30000)(withsh: (SSHShell) => T):T = shell[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout)) (withsh)
   
   def shell[T](options:SSHOptions)(withsh: (SSHShell) => T):T = usingSSH(new SSH(options)) {ssh =>
     ssh.shell {sh => withsh(sh)}
@@ -135,7 +136,7 @@ object SSH extends SSHAutoClose {
     passphrase: Option[String] = None,
     host: String = "localhost",
     port: Int = 22,
-    connectTimeout: Int = 30000)(withftp: (SSHFtp) => T):T = ftp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withftp)
+    timeout: Int = 30000)(withftp: (SSHFtp) => T):T = ftp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout)) (withftp)
   
   def ftp[T](options:SSHOptions)(withftp: (SSHFtp) => T):T = usingSSH(new SSH(options)) {ssh =>
     ssh.ftp {ftp => withftp(ftp)}
@@ -150,12 +151,24 @@ object SSH extends SSHAutoClose {
     passphrase: Option[String] = None,
     host: String = "localhost",
     port: Int = 22,
-    connectTimeout: Int = 30000)(withshftp: (SSHShell,SSHFtp) => T):T = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, connectTimeout = connectTimeout)) (withshftp)
+    timeout: Int = 30000)(withshftp: (SSHShell,SSHFtp) => T):T = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout)) (withshftp)
   
   def shellAndFtp[T](options:SSHOptions)(withshftp: (SSHShell,SSHFtp) => T):T = usingSSH(new SSH(options)) {ssh =>
     ssh.shell {sh => ssh.ftp { ftp =>withshftp(sh,ftp)}}
   }
   def shellAndFtp[T](someOptions:Option[SSHOptions])(withshftp: (SSHShell,SSHFtp) => T):Option[T] = someOptions map {shellAndFtp[T](_)(withshftp)}
+ 
+  
+  def apply(
+    username: String = util.Properties.userName,
+    password: Option[String] = None,
+    passphrase: Option[String] = None,
+    host: String = "localhost",
+    port: Int = 22,
+    timeout: Int = 30000) = new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout))
+
+  def apply(options:SSHOptions) = new SSH(options)
+  def apply(someOptions:Option[SSHOptions]):Option[SSH] = someOptions map {new SSH(_)}
   
   //implicit def toCommand(cmd: String) = new SSHCommand(cmd)
   //implicit def toBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
@@ -220,7 +233,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
       jschsession = jsch.getSession(options.username, options.host, options.port)
       jschsession setUserInfo SSHUserInfo(options.password, options.passphrase)
-      jschsession.connect(options.connectTimeout)
+      jschsession.connect(options.timeout.toInt)
     }
     jschsession
   }
@@ -250,7 +263,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
             jschStdoutStream = jschexecchannel.getInputStream()
             jschStderrStream = jschexecchannel.getErrStream()
             jschStdinStream = jschexecchannel.getOutputStream()
-            jschexecchannel.connect(ssh.options.connectTimeout)
+            jschexecchannel.connect(ssh.options.timeout.toInt)
 
             connected = true
           } catch {
@@ -273,8 +286,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
     def act() {
       val channel = getChannel(cmd)
-      val stdout = InputStreamThread(channel, jschStdoutStream, out, err)
-      val stderr = InputStreamThread(channel, jschStderrStream, out, err)
+      val stdout = InputStreamThread(channel, jschStdoutStream, out)
+      val stderr = InputStreamThread(channel, jschStderrStream, err)
       loop {
         receive {
           case str: String => jschStdinStream.write(str.getBytes())
@@ -283,7 +296,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       }
     }
 
-    class InputStreamThread(channel: ChannelExec, input: InputStream, out: Option[String]=> Any, err: (Option[String])=> Any) extends Thread {
+    class InputStreamThread(channel: ChannelExec, input: InputStream, output: Option[String]=> Any) extends Thread {
       override def run() {
         val bufsize = 16 * 1024
         val charset = Charset.forName(ssh.options.charset)
@@ -310,7 +323,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 	            do {
 	              e = appender.indexOf("\n",s)
 	              if (e>=0) {
-	                out(Some(appender.substring(s,e)))
+	                output(Some(appender.substring(s,e)))
 	                s = e + 1
 	              }
 	            } while(e != -1 )
@@ -318,13 +331,13 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 	          }
           }
         } while (!channel.isEOF() && !channel.isClosed())
-        if (appender.size>0) out(Some(appender.toString()))
-        out(None)
+        if (appender.size>0) output(Some(appender.toString()))
+        output(None)
       }
     }
     object InputStreamThread {
-      def apply(channel: ChannelExec, input: InputStream, out: Option[String]=> Any, err: Option[String]=> Any) = {
-        val newthread = new InputStreamThread(channel, input, out, err)
+      def apply(channel: ChannelExec, input: InputStream, output: Option[String]=> Any) = {
+        val newthread = new InputStreamThread(channel, input, output)
         newthread.start()
         newthread
       }
@@ -350,7 +363,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
         while (retryCount > 0 && !connected) {
           try {
             jschftpchannel = ssh.jschsession.openChannel("sftp").asInstanceOf[ChannelSftp]
-            jschftpchannel.connect(ssh.options.connectTimeout)
+            jschftpchannel.connect(ssh.options.timeout.toInt)
             connected = true
           } catch {
             case e =>
@@ -418,9 +431,11 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   }
 
-  class SSHShell(timeout: Long = 100000L) (implicit ssh:SSH) {
+  class SSHShell (implicit ssh:SSH) {
 
-    val prompt = """-PRMT-: """
+    val defaultPrompt = """-PRMT-: """
+    val prompt = ssh.options.prompt getOrElse defaultPrompt
+    
     val inout = new PipedOutputStream
     val inin = new PipedInputStream(inout)
     val bout = new MyOut(/*self*/)
@@ -438,7 +453,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
           channel.setInputStream(inin)
           channel.setOutputStream(bout)
-          channel.connect(ssh.options.connectTimeout)
+          channel.connect(ssh.options.timeout.toInt)
           connected = true
         } catch {
           case e =>
@@ -452,8 +467,15 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
         }
       }
 
-      sendCommand("""unset LS_COLORS """)
-      sendCommand("""export PS1='%s'""".format(prompt))
+      if (ssh.options.prompt.isEmpty) {
+        Thread.sleep(1000)
+	    sendCommand("""unset LS_COLORS """)
+	    sendCommand("""unset EDITOR""")
+//	      sendCommand("""COLUMNS=1000""")
+	    sendCommand("""set +o emacs""")
+	    sendCommand("""set +o vi""")
+	    sendCommand("""export PS1='%s'""".format(defaultPrompt))  // ok with ksh, bash, sh
+      }
       channel
     }
 
@@ -476,12 +498,13 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       cont(execute(cmd))
     }
 
-    def execute(cmd: String, timeout: Long = timeout): String = {
-      def getResponse(timeout: Long = timeout, breaktry: Int = 5): String = {
+    def execute(cmd: String, timeout: Long = ssh.options.timeout): String = {
+      def getResponse(timeout: Long = timeout, breaktry: Int = 0): String = {
         receiveWithin(timeout) {
           case TIMEOUT => // Sending Break command ctrl-c
-            inout.write(28.toChar.toString.getBytes)
-            if (breaktry > 0) getResponse(timeout, breaktry - 1) else "FAILED TO BREAK"
+            //inout.write(28.toChar.toString.getBytes)
+            //if (breaktry > 0) getResponse(timeout, breaktry - 1) else "FAILED TO BREAK"
+            throw new RuntimeException("Timeout while executing %s".format(cmd))
           case v @ _ => v.toString
         }
       }
@@ -518,20 +541,27 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       var boot = true // Amorçage réalisé une fois le prompt effectivement modifié, on ignore tout ce qui a pu etre réalisé précédement
       var waitFirstPrompt = true // On attend la première apparition du prompt, on ignore ce qui a pu se passer précédemment
       var lines = List[String]()
-      var line = ""
+      var line = new StringBuilder(8192)
+      var bootpromptcount=0
       def write(b: Int) = b match {
         case 13 =>
         case 10 =>
-          if (boot && line.startsWith(prompt)) {
-            boot = false
-            lines = List(lines.last)
+          if (boot) {
+        	val promptIndex = line.indexOf(prompt)
+            if (promptIndex != -1) {
+              bootpromptcount+=1
+              //if (line.indexOf(prompt, promptIndex+1)!= -1) bootpromptcount+=1 // the prompt two times in the same line
+              if (bootpromptcount>=2) boot = false // Do ready to receive inputs
+              lines = List(lines.last)
+            }
           } else
-            lines = lines :+ line
-          line = ""
+            lines = lines :+ line.toString()
+            line.clear()
         case _ =>
-          line += b.toChar
-          if (!boot && (line endsWith prompt)) {
-            lines = lines :+ line.dropRight(prompt.size)
+          line.append(b.toChar)
+          val promptIndex = line.indexOf(prompt)
+          if (!boot && promptIndex != -1) {
+            lines = lines :+ line.substring(0, promptIndex)
             // ------------
             // WARNING : Because write method is called out of the scala context, called from JSCH java thread
             // it is better to create a temporary actor which will send the message in a scala context thus
@@ -542,8 +572,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
               this ! data2send
             }
             // ------------
-            lines = List[String]()
-            line = ""
+            lines = List.empty[String]
+            line.clear
           }
       }
       override def close() {

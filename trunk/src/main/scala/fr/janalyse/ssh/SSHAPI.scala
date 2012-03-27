@@ -459,6 +459,26 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       ch.setInputStream(new PipedInputStream(toServer))
       
       ch.connect(ssh.options.timeout.toInt)
+
+        if (ssh.options.prompt.isEmpty) {
+          println("**** INIT STARTED ****")
+	      //toServer.sendCommand("""unset LS_COLORS """)
+	      //toServer.sendCommand("""unset EDITOR""")
+	      //toServer.sendCommand("""set +o emacs""")
+	      //toServer.sendCommand("""set +o vi""")
+	      //toServer.sendCommand("""PS1='%s'""".format(defaultPrompt))  // ok with ksh, bash, sh
+	      toServer.write("unset LS_COLORS\n".getBytes()) ; toServer.flush()
+	      toServer.write("unset EDITOR\n".getBytes()) ; toServer.flush()
+	      toServer.write("set +o emacs\n".getBytes()) ; toServer.flush()
+	      toServer.write("set +o vi\n".getBytes()) ; toServer.flush()
+	      toServer.write("PS1='%s'\n".format(defaultPrompt).getBytes()) ; toServer.flush()
+	      toServer.flush()
+  	      //fromServer.getResponse()
+  	      //fromServer.getResponse()
+          println("**** INIT FINISHED ****")
+        }
+
+      
       (ch, toServer, fromServer)
     }
 
@@ -487,27 +507,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
     def executeAndTrimSplit(cmd:String):Array[String] = execute(cmd).trim().split("\r?\n")
 
-    private var purgeAtInit=true
     private def sendCommand(cmd: String): Unit = {
-      if (purgeAtInit) {
-        if (ssh.options.prompt.isEmpty) {
-          println("**** INIT STARTED ****")
-	      //toServer.sendCommand("""unset LS_COLORS """)
-	      //toServer.sendCommand("""unset EDITOR""")
-	      //toServer.sendCommand("""set +o emacs""")
-	      //toServer.sendCommand("""set +o vi""")
-	      //toServer.sendCommand("""PS1='%s'""".format(defaultPrompt))  // ok with ksh, bash, sh
-	      toServer.write("unset LS_COLORS\n".getBytes()) ; toServer.flush()
-	      toServer.write("unset EDITOR\n".getBytes()) ; toServer.flush()
-	      toServer.write("set +o emacs\n".getBytes()) ; toServer.flush()
-	      toServer.write("set +o vi\n".getBytes()) ; toServer.flush()
-	      toServer.write("PS1='%s'\n".format(defaultPrompt).getBytes()) ; toServer.flush()
-  	      fromServer.getResponse()
-  	      fromServer.getResponse()
-          purgeAtInit=false
-          println("**** INIT FINISHED ****")
-        }
-      }
       //toServer.sendCommand(cmd)
       toServer.write( (cmd+"\n").getBytes()) ; toServer.flush()
     }
@@ -594,6 +594,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       val consumerAppender = new StringBuilder()
       var searchForPromptIndex=0
       
+      var toGarbageCount=1
+      
       def write(b: Int) {
         consumerAppender.append(b.toChar)
         val promptIndex=consumerAppender.indexOf(prompt, searchForPromptIndex)
@@ -602,7 +604,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 	      val result = consumerAppender.substring(firstNlIndex+1, promptIndex)
 	        println("-----------------------")
 	        println(result)
-	      resultsQueue.enqueue(result)
+	      if (toGarbageCount>0) toGarbageCount-=1
+	      else resultsQueue.enqueue(result)
           searchForPromptIndex=0
           consumerAppender.clear()
         } else  {

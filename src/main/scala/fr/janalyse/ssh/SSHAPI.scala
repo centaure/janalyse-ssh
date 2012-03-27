@@ -17,7 +17,6 @@
 package fr.janalyse.ssh
 
 import com.jcraft.jsch._
-
 import scala.actors._
 import scala.actors.Actor._
 import scala.io.BufferedSource
@@ -28,6 +27,7 @@ import java.nio.charset.Charset
 import java.nio.ByteBuffer
 import scala.util.{Properties=>SP}
 import java.io.File.{separator=>FS, pathSeparator=>PS}
+import scala.collection.mutable.SynchronizedQueue
 
 trait SSHAutoClose {
   // Automatic resource liberation
@@ -435,49 +435,27 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
     val defaultPrompt = """-PRMT-: """
     val prompt = ssh.options.prompt getOrElse defaultPrompt
-    
-    val inout = new PipedOutputStream
-    val inin = new PipedInputStream(inout)
-    val bout = new MyOut(/*self*/)
-
-    val channel = {
-      var channel: ChannelShell = null
-      var connected: Boolean = false
-      var retryCount = ssh.options.retryCount
-      while (retryCount > 0 && !connected) {
-        try {
-          channel = ssh.jschsession.openChannel("shell").asInstanceOf[ChannelShell]
-          channel.setPtyType("dumb")
-          //channel.setPtyType("")
-          channel.setXForwarding(false)
-
-          channel.setInputStream(inin)
-          channel.setOutputStream(bout)
-          channel.connect(ssh.options.timeout.toInt)
-          connected = true
-        } catch {
-          case e =>
-            try { channel.disconnect } catch { case _ => } finally { channel = null }
-            retryCount -= 1
-            if (retryCount > 0) Thread.sleep(ssh.options.retryDelay)
-            else {
-              println("SSH CONNECT Maximum retry count reached, couldn't connect to remote system " + ssh.options.host)
-              e.printStackTrace
-            }
-        }
-      }
-
-      if (ssh.options.prompt.isEmpty) {
-	    sendCommand("""unset LS_COLORS """)
-	    sendCommand("""unset EDITOR""")
-	    sendCommand("""set +o emacs""")
-	    sendCommand("""set +o vi""")
-	    sendCommand("""PS1='%s'""".format(defaultPrompt))  // ok with ksh, bash, sh
-	    Thread.sleep(50)
-	    inout.write("\n".getBytes)
-	    inout.flush()
-      }
-      channel
+        
+    val (channel, toServer, fromServer) = {
+      var ch: ChannelShell = ssh.jschsession.openChannel("shell").asInstanceOf[ChannelShell]
+      ch.setPtyType("dumb")
+      ch.setXForwarding(false)
+      ch.setInputStream(null)
+      ch.setOutputStream(null)
+      
+      val pis = new PipedInputStream();
+      ch.setOutputStream(new PipedOutputStream(pis));
+      
+      val pos = new PipedOutputStream();
+      ch.setInputStream(new PipedInputStream(pos));
+      
+      val toServer = new ProducerThread(pos)
+	  val fromServer = new ConsumerThread(pis)
+      
+      ch.connect(ssh.options.timeout.toInt)
+      fromServer.start()
+      toServer.start()
+      (ch, toServer, fromServer)
     }
 
     def batch[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
@@ -490,9 +468,6 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
     def close() = {
       channel.disconnect()
-      inout.close()
-      inin.close()
-      bout.close()
     }
 
     def executeAndContinue(cmd: String, cont: String => Unit): Unit = {
@@ -500,90 +475,140 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
 
     def execute(cmd: String, timeout: Long = ssh.options.timeout): String = {
-      def getResponse(timeout: Long = timeout, breaktry: Int = 0): String = {
-        receiveWithin(timeout) {
-          case TIMEOUT => // Sending Break command ctrl-c
-            //inout.write(28.toChar.toString.getBytes)
-            //if (breaktry > 0) getResponse(timeout, breaktry - 1) else "FAILED TO BREAK"
-            throw new RuntimeException("Timeout while executing %s".format(cmd))
-          case v @ _ => v.toString
-        }
-      }
-      bout ! self
       sendCommand(cmd)
-      getResponse(timeout)
+      fromServer.getResponse()
     }
     
     def executeAndTrim(cmd:String):String = execute(cmd).trim()
 
     def executeAndTrimSplit(cmd:String):Array[String] = execute(cmd).trim().split("\r?\n")
 
+    private var purgeAtInit=true
     private def sendCommand(cmd: String): Unit = {
-      inout.write(cmd.getBytes)
-      inout.write("\n".getBytes)
-      inout.flush()
+      if (purgeAtInit) {
+        if (ssh.options.prompt.isEmpty) {
+          println("**** INIT STARTED ****")
+	      toServer.sendCommand("""unset LS_COLORS """)
+	      toServer.sendCommand("""unset EDITOR""")
+	      toServer.sendCommand("""set +o emacs""")
+	      toServer.sendCommand("""set +o vi""")
+	      toServer.sendCommand("""PS1='%s'""".format(defaultPrompt))  // ok with ksh, bash, sh
+  	      fromServer.getResponse()
+	      toServer.sendCommand("echo 'started'")
+	      fromServer.getResponse()
+          purgeAtInit=false
+          println("**** INIT FINISHED ****")
+        }
+      }
+      toServer.sendCommand(cmd)
     }
+
     
-    // Warning, MyOut method are called by an external thread belonging to JSCH library
-    class MyOut extends OutputStream with DaemonActor {
-      start
+    class ProducerThread(output: OutputStream) extends Thread {
+      setDaemon(true)
+      setName("SSHShellConsumerThread")
       
-      def act() = {
-        var asker:Option[Actor]=None
-        loop {
-          react {
-            case x:String => asker map {_ ! x}
-            case respondTo:Actor => asker = Some(respondTo)
-            case _:EndMessage => exit()
+      val cmdQueue = new SynchronizedQueue[String]()
+      
+      def sendCommand(cmd:String) {
+        cmdQueue.enqueue(cmd)
+      }
+      
+      override def run() {
+        while(true) {
+          if (cmdQueue.isEmpty) Thread.sleep(100)
+          else {
+            val cmd = cmdQueue.dequeue()
+            output.write(cmd.getBytes)
+            output.write("\n".getBytes)
+            output.flush()              
           }
         }
       }
-      var lines = List[String]()
-      var line = new StringBuilder(8192)
-      var bootpromptcount=0
-      
-      def write(b: Int) = b match {
-        case 13 =>
-        case 10 =>
-          lines = lines :+ line.toString()
-          line.clear()
-        case _ =>
-          line.append(b.toChar)
-          if (line.endsWith(prompt)) {
-            bootpromptcount+=1
-            if (bootpromptcount>2) {
-              val promptIndex = line.size - prompt.size
-              if (promptIndex>0) lines = lines :+ line.substring(0, promptIndex)
-	          // ------------
-	          // WARNING : Because write method is called out of the scala context, called from JSCH java thread
-	          // it is better to create a temporary actor which will send the message in a scala context thus
-	          // avoiding the java process entering in a forever wait instead of exiting ! 
-	          val caller=this
-              //println(">>>%s<<<".format(lines.tail.mkString("//")))
-	          val data2send=(lines.tail mkString "\n")
-	          actor { this ! data2send }
-	          // ------------
-              lines = List.empty[String]
-              line.delete(0, promptIndex)
-            } else {
-              lines = List.empty[String]
-              line.clear()
-            }
-          }
+    }
+    
+    
+    class ConsumerOutputStreamThread extends OutputStream {
+      val resultsQueue = new SynchronizedQueue[String]()
+      def now=System.currentTimeMillis()
+      def getResponse(timeout:Long = ssh.options.timeout) = {
+        val started=now
+         // TODO : BAD BAD BAD - Temporary hack
+        while(resultsQueue.isEmpty && (now-started<timeout)) Thread.sleep(100)
+        resultsQueue.dequeue()
       }
-      override def close() {
-        this ! EndMessage
-        super.close()
+      val consumerAppender = new StringBuilder()
+      def write(b: Int) {
+        b match {
+          case 13 =>
+          case 10 =>
+          case _  =>
+            
+        }
       }
     }
+    
+    class ConsumerThread(input: InputStream) extends Thread {
+      setDaemon(true)
+      setName("SSHShellConsumerThread")
+      
+      val resultsQueue = new SynchronizedQueue[String]()
+      
+      val consumerBufSize = 8 * 1024
+      val consumerCharset = Charset.forName(ssh.options.charset)
+      val consumerInput = input // No buffer 
+      val consumerBytesArray = Array.ofDim[Byte](consumerBufSize)
+      val consumerBuffer = ByteBuffer.allocate(consumerBufSize)
+      val consumerAppender = new StringBuilder()
+      def now=System.currentTimeMillis()
+      
+      def getResponse(timeout:Long = ssh.options.timeout) = {
+        val started=now
+         // TODO : BAD BAD BAD - Temporary hack
+        while(resultsQueue.isEmpty && (now-started<timeout)) Thread.sleep(100)
+        resultsQueue.dequeue()
+      }
+      
+      override def run() {
+        while(true) {
+	        var promptFound=false
+	        var searchForPromptIndex=0
+	        var lastReadtime=now
+	        do {
+	          consumerInput.available() match {
+	            case 0 =>
+	              Thread.sleep(100)
+	            case available =>
+	              val max2read = if (available < consumerBufSize) available else consumerBufSize
+		          val howmany = consumerInput.read(consumerBytesArray, 0, max2read)
+		          if (howmany > 0) {
+		            lastReadtime=now
+		            consumerBuffer.put(consumerBytesArray, 0, howmany)
+		            consumerBuffer.flip()
+		            val cbOut = consumerCharset.decode(consumerBuffer)
+		            consumerBuffer.compact()
+		            consumerAppender.append(cbOut.toString())
+		            val promptIndex=consumerAppender.indexOf(prompt, searchForPromptIndex)
+		            if (promptIndex != -1) {
+		              searchForPromptIndex=promptIndex
+		              promptFound=true
+		            } else searchForPromptIndex = 0 // consumerAppender.size - prompt.size
+		          }
+	          }
+	        } while (!promptFound)
+	        val firstNlIndex=consumerAppender.indexOf("\n")
+	        val result = consumerAppender.substring(firstNlIndex+1, searchForPromptIndex)
+	        println("-----------------------")
+	        println(consumerAppender)
+	        println("---------")
+	        println(result)
+	        resultsQueue.enqueue(result)
+	        consumerAppender.clear()
+        }
+      }
+    }
+
   }
-/*
-
-import fr.janalyse.ssh._
-val ssh=SSH(username="test", timeout=2000)
-val sh=ssh.newShell
-
- */
 
 // =============================================================================
 

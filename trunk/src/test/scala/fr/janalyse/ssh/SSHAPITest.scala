@@ -38,7 +38,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
 
   //==========================================================================================================
   test("One line exec with automatic resource close") {
-    connect(username = "test") { _ execute "expr 1 + 1" } should equal("2") // TODO : Should be 2\n
+    connect(username = "test") { _ execute "expr 1 + 1" } should equal("2\n")
     connect(username = "test") { _ executeAndTrim "expr 1 + 1" } should equal("2")
     connect(username = "test") { _ executeAndTrim "echo 1" :: "echo 2" :: Nil } should equal("1" :: "2" :: Nil)
     val year = connect(username = "test") { _ executeAndTrim "expr 1 + 10" toInt }

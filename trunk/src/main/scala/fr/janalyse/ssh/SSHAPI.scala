@@ -431,6 +431,13 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   }
 
+  
+  
+  
+  
+  
+  
+  
   class SSHShell (implicit ssh:SSH) {
 
     val defaultPrompt = """-PRMT-: """
@@ -440,21 +447,18 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       var ch: ChannelShell = ssh.jschsession.openChannel("shell").asInstanceOf[ChannelShell]
       ch.setPtyType("dumb")
       ch.setXForwarding(false)
-      ch.setInputStream(null)
-      ch.setOutputStream(null)
+      //ch.setInputStream(null)
+      //ch.setOutputStream(null)
       
-      val pis = new PipedInputStream();
-      ch.setOutputStream(new PipedOutputStream(pis));
+      val fromServer = new ConsumerOutputStream()
+      ch.setOutputStream(fromServer)
       
-      val pos = new PipedOutputStream();
-      ch.setInputStream(new PipedInputStream(pos));
-      
-      val toServer = new ProducerThread(pos)
-	  val fromServer = new ConsumerThread(pis)
+      //val toServer = new ProducerInputStream()
+      //ch.setInputStream(toServer)
+      val toServer = new PipedOutputStream
+      ch.setInputStream(new PipedInputStream(toServer))
       
       ch.connect(ssh.options.timeout.toInt)
-      fromServer.start()
-      toServer.start()
       (ch, toServer, fromServer)
     }
 
@@ -488,21 +492,70 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       if (purgeAtInit) {
         if (ssh.options.prompt.isEmpty) {
           println("**** INIT STARTED ****")
-	      toServer.sendCommand("""unset LS_COLORS """)
-	      toServer.sendCommand("""unset EDITOR""")
-	      toServer.sendCommand("""set +o emacs""")
-	      toServer.sendCommand("""set +o vi""")
-	      toServer.sendCommand("""PS1='%s'""".format(defaultPrompt))  // ok with ksh, bash, sh
+	      //toServer.sendCommand("""unset LS_COLORS """)
+	      //toServer.sendCommand("""unset EDITOR""")
+	      //toServer.sendCommand("""set +o emacs""")
+	      //toServer.sendCommand("""set +o vi""")
+	      //toServer.sendCommand("""PS1='%s'""".format(defaultPrompt))  // ok with ksh, bash, sh
+	      toServer.write("unset LS_COLORS\n".getBytes()) ; toServer.flush()
+	      toServer.write("unset EDITOR\n".getBytes()) ; toServer.flush()
+	      toServer.write("set +o emacs\n".getBytes()) ; toServer.flush()
+	      toServer.write("set +o vi\n".getBytes()) ; toServer.flush()
+	      toServer.write("PS1='%s'\n".format(defaultPrompt).getBytes()) ; toServer.flush()
   	      fromServer.getResponse()
-	      toServer.sendCommand("echo 'started'")
-	      fromServer.getResponse()
+  	      fromServer.getResponse()
           purgeAtInit=false
           println("**** INIT FINISHED ****")
         }
       }
-      toServer.sendCommand(cmd)
+      //toServer.sendCommand(cmd)
+      toServer.write( (cmd+"\n").getBytes()) ; toServer.flush()
     }
 
+    
+    private def rawWrite(cmd:String):Unit = {
+      toServer.write(cmd.getBytes)
+      toServer.write(10)
+      toServer.flush()
+    }
+    
+    
+    
+    class ProducerInputStream() extends InputStream {
+      
+      val cmdQueue = new SynchronizedQueue[String]()
+      
+      def sendCommand(cmd:String) {
+        cmdQueue.enqueue(cmd+"\n")
+        synchronized {
+          lastKnownBufferSize += cmd.size+1
+        }
+      }
+      
+      val buffer=new StringBuilder()
+      var lastKnownBufferSize=0
+      
+      override def read():Int = {
+        while(lastKnownBufferSize==0 && cmdQueue.size==0) Thread.sleep(100)
+        if(cmdQueue.size > 0) buffer.append(cmdQueue.dequeue())
+        synchronized {
+          lastKnownBufferSize -= 1
+        }
+        val c = buffer.charAt(0)
+        buffer.deleteCharAt(0)
+        print(c)
+        c.toInt
+      }
+      
+      override def available():Int = {
+        lastKnownBufferSize
+      }
+    }
+
+    
+    
+    
+    
     
     class ProducerThread(output: OutputStream) extends Thread {
       setDaemon(true)
@@ -528,25 +581,38 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     }
     
     
-    class ConsumerOutputStreamThread extends OutputStream {
+    class ConsumerOutputStream extends OutputStream {
       val resultsQueue = new SynchronizedQueue[String]()
       def now=System.currentTimeMillis()
+      
       def getResponse(timeout:Long = ssh.options.timeout) = {
         val started=now
-         // TODO : BAD BAD BAD - Temporary hack
-        while(resultsQueue.isEmpty && (now-started<timeout)) Thread.sleep(100)
+        while(resultsQueue.isEmpty && (now-started<timeout)) Thread.sleep(100) // TODO : BAD BAD BAD - Temporary hack
         resultsQueue.dequeue()
       }
+      
       val consumerAppender = new StringBuilder()
+      var searchForPromptIndex=0
+      
       def write(b: Int) {
-        b match {
-          case 13 =>
-          case 10 =>
-          case _  =>
-            
+        consumerAppender.append(b.toChar)
+        val promptIndex=consumerAppender.indexOf(prompt, searchForPromptIndex)
+        if (promptIndex != -1) {
+  	      val firstNlIndex=consumerAppender.indexOf("\n")
+	      val result = consumerAppender.substring(firstNlIndex+1, promptIndex)
+	        println("-----------------------")
+	        println(result)
+	      resultsQueue.enqueue(result)
+          searchForPromptIndex=0
+          consumerAppender.clear()
+        } else  {
+          searchForPromptIndex = consumerAppender.size - prompt.size
+          if (searchForPromptIndex<0) searchForPromptIndex=0
         }
       }
     }
+    
+    
     
     class ConsumerThread(input: InputStream) extends Thread {
       setDaemon(true)

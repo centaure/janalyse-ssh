@@ -82,8 +82,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
   //==========================================================================================================
-  val howmany=100
-  ignore("Bad performances obtained without persistent schell ssh channel (autoclose)") {
+  test("SSHShell : Bad performances obtained without persistent schell ssh channel (autoclose)") {
+    val howmany=10
     connect(username = "test") { ssh =>
       val remotedate = ssh execute "date"
       val (dur, _) = howLongFor(() =>
@@ -93,7 +93,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
   //==========================================================================================================
-  test("Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
+  test("SSHShell : Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
+    val howmany=100
     connect(username = "test") {
       _.shell { sh =>
         val remotedate = sh execute "date"

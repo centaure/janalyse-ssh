@@ -482,18 +482,17 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
       cont(execute(cmd))
     }
 
-    def execute(cmd: String, timeout: Long = ssh.options.timeout): String = {
-      //println(cmd)
-      sendCommand(cmd)
-      val result=fromServer.getResponse()
-      //println("**")
-      //println(result)
-      result
-    }
-    
     def executeAndTrim(cmd:String):String = execute(cmd).trim()
 
+    
     def executeAndTrimSplit(cmd:String):Array[String] = execute(cmd).trim().split("\r?\n")
+    
+    
+    def execute(cmd: String, timeout: Long = ssh.options.timeout): String = {
+      sendCommand(cmd)
+      val result=fromServer.getResponse()
+      result
+    }
 
     private var doInit=true
     private def sendCommand(cmd: String): Unit = {
@@ -529,35 +528,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
         output.flush()              
       }
     }
-    
-    
-    
-    class ProducerThread(output: OutputStream) extends Thread {
-      val cmdQueue = new SynchronizedQueue[String]()
 
-      setDaemon(true)
-      setName("SSHShellConsumerThread")
-      
-      start()
-      
-      def sendCommand(cmd:String) {
-        cmdQueue.enqueue(cmd)
-      }
-      
-      override def run() {
-        while(true) {
-          if (cmdQueue.isEmpty) {
-            Thread.sleep(10)
-          } else {
-            val cmd = cmdQueue.dequeue()
-            output.write(cmd.getBytes)
-            output.write("\n".getBytes)
-            output.flush()              
-          }
-        }
-      }
-    }
-    
     
     class ConsumerOutputStream extends OutputStream {
       
@@ -572,86 +543,25 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
         resultsQueue.take()
       }
       
-      val consumerAppender = new StringBuilder()
+      val consumerAppender = new StringBuilder(8192)
       var searchForPromptIndex=0
+      val promptSize=prompt.size
+      var lastPromptChar=prompt.last
       
       def write(b: Int) {
         if (b!=13) { //CR removed... CR is always added by JSCH !!!!
-          //print(b.toChar)
-          consumerAppender.append(b.toChar)
-          val promptIndex = consumerAppender.indexOf(prompt, searchForPromptIndex)
-          if (promptIndex != -1) {
+          consumerAppender.append(b.toChar) // TODO - Add charset support
+          if (consumerAppender.endsWith(prompt)) {
+            val promptIndex = consumerAppender.size - promptSize
   	        val firstNlIndex= consumerAppender.indexOf("\n")
 	        val result = consumerAppender.substring(firstNlIndex+1, promptIndex)
 	        resultsQueue.put(result)
             searchForPromptIndex=0
             consumerAppender.clear
           } else  {
-            searchForPromptIndex = consumerAppender.size - prompt.size
+            searchForPromptIndex = consumerAppender.size - promptSize
             if (searchForPromptIndex<0) searchForPromptIndex=0
           }
-        }
-      }
-    }
-    
-    
-    
-    class ConsumerThread(input: InputStream) extends Thread {
-      setDaemon(true)
-      setName("SSHShellConsumerThread")
-      
-      val resultsQueue = new SynchronizedQueue[String]()
-      
-      val consumerBufSize = 8 * 1024
-      val consumerCharset = Charset.forName(ssh.options.charset)
-      val consumerInput = input // No buffer 
-      val consumerBytesArray = Array.ofDim[Byte](consumerBufSize)
-      val consumerBuffer = ByteBuffer.allocate(consumerBufSize)
-      val consumerAppender = new StringBuilder()
-      def now=System.currentTimeMillis()
-      
-      def getResponse(timeout:Long = ssh.options.timeout) = {
-        val started=now
-         // TODO : BAD BAD BAD - Temporary hack
-        while(resultsQueue.isEmpty && (now-started<timeout)) Thread.sleep(100)
-        resultsQueue.dequeue()
-      }
-      
-      override def run() {
-        while(true) {
-	        var promptFound=false
-	        var searchForPromptIndex=0
-	        var lastReadtime=now
-	        do {
-	          consumerInput.available() match {
-	            case 0 =>
-	              Thread.sleep(100)
-	            case available =>
-	              val max2read = if (available < consumerBufSize) available else consumerBufSize
-		          val howmany = consumerInput.read(consumerBytesArray, 0, max2read)
-		          if (howmany > 0) {
-		            lastReadtime=now
-		            consumerBuffer.put(consumerBytesArray, 0, howmany)
-		            consumerBuffer.flip()
-		            val cbOut = consumerCharset.decode(consumerBuffer)
-		            consumerBuffer.compact()
-		            consumerAppender.append(cbOut.toString())
-		            val promptIndex=consumerAppender.indexOf(prompt, searchForPromptIndex)
-		            if (promptIndex != -1) {
-		              searchForPromptIndex=promptIndex
-		              promptFound=true
-		            } else searchForPromptIndex = 0 // consumerAppender.size - prompt.size
-		          }
-	          }
-	        } while (!promptFound)
-	        val firstNlIndex=consumerAppender.indexOf("\n")
-	        val result = consumerAppender.substring(firstNlIndex+1, searchForPromptIndex)
-	        println("-----------------------")
-	        println(consumerAppender)
-	        println("---------")
-	        println(result)
-	        resultsQueue.enqueue(result)
-	        consumerAppender.clear()
         }
       }
     }

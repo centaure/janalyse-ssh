@@ -1,8 +1,14 @@
 JANALYSE-SSH
 
 0.6.1
- - Add new method to SSH : newShell & newSftp for user to manage themselves shell and sftp session
+ - Added new method to SSH : newShell & newSftp for user to manage themselves shell and sftp session
  - Some internal changes to SSHExec class, in order to try to remove actor dependency. Mixing actors systems looks problematic
+ - SSHShell new implementation, no more actors used, better performances and behavior, ...
+ - SSHExec last result line is no longer lost
+ - SSHOptions : new parameter : "prompt" to enable custom shell or console command to be use.
+                prompt provide to SSHShell the way to separate command results
+ - SSHOptions : connectionTimeout renamed into timeout
+
  
 0.6.0
  - update jsch to 0.1.46

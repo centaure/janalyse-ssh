@@ -2,11 +2,8 @@ JANALYSE-SSH
 
 TODO
  - SSHShell : Remove Thread.sleep
- - SSHExec : Do not rely on DaemonActor/Actor anymore
- - SSH : Add an execute immediate method which rely on SSHExec, not SSHShell !
- - Tests : compare performances persistent SSHShell versus SSHExec  commands throughputs
-
-0.6.1
+ 
+0.7.0
  - Added new method to SSH : newShell & newSftp for user to manage themselves shell and sftp session
  - Some internal changes to SSHExec class, in order to try to remove actor dependency. Mixing actors systems looks problematic
  - SSHShell new implementation, no more actors used, better performances and behavior, ...
@@ -15,6 +12,9 @@ TODO
                 prompt provide to SSHShell the way to separate command results
  - SSHOptions : connectionTimeout renamed into timeout
  - Various cleanup and enhancements
+ - Tests : compare performances persistent SSHShell versus SSHExec  commands throughputs
+ - SSH : Add an execute immediate method which rely on SSHExec, not SSHShell !
+ - SSHExec : Do not rely on DaemonActor/Actor anymore
 
  
 0.6.0

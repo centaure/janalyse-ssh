@@ -89,20 +89,31 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       val (dur, _) = howLongFor(() =>
         for (i <- 1 to howmany) { ssh execute "ls -d /tmp && echo 'done'" })
       val throughput = howmany.doubleValue() / dur * 1000
-      info("Performance without channel persistency : %.1f cmd/s".format(throughput))
+      info("Performance using shell without channel persistency : %.1f cmd/s".format(throughput))
     }
   }
   //==========================================================================================================
   test("SSHShell : Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
-    val howmany=100
+    val howmany=200
     connect(username = "test") {
       _.shell { sh =>
         val remotedate = sh execute "date"
         val (dur, _) = howLongFor(() =>
           for (i <- 1 to howmany) { sh execute "ls -d /tmp && echo 'done'" })
         val throughput = howmany.doubleValue() / dur * 1000
-        info("Performance with channel persistency : %.1f cmd/s".format(throughput))
+        info("Performance using with channel persistency : %.1f cmd/s".format(throughput))
       }
+    }
+  }
+  //==========================================================================================================
+  test("SSHExec : performances obtained using exec ssh channel (no persistency)") {
+    val howmany=10
+    connect(username = "test") { ssh =>
+      val remotedate = ssh execOnce "date"
+      val (dur, _) = howLongFor(() =>
+        for (i <- 1 to howmany) { ssh execOnce "ls -d /tmp && echo 'done'"})
+      val throughput = howmany.doubleValue() / dur * 1000
+      info("Performance using exec ssh channel (no persistency) : %.1f cmd/s".format(throughput))
     }
   }
   //==========================================================================================================

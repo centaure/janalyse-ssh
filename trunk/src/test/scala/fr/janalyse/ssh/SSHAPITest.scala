@@ -37,15 +37,15 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
 
   //==========================================================================================================
   test("One line exec with automatic resource close") {
-    SSH(username = "test") { _ execute "expr 1 + 1" trim } should equal("2")
-    SSH(username = "test") { _ executeAndTrim "expr 1 + 1" } should equal("2")
-    SSH(username = "test") { _ executeAndTrim "echo 1" :: "echo 2" :: Nil } should equal("1" :: "2" :: Nil)
-    val year = SSH(username = "test") { _ executeAndTrim "expr 1 + 10" toInt }
+    SSH.once(username = "test") { _ execute "expr 1 + 1" trim } should equal("2")
+    SSH.once(username = "test") { _ executeAndTrim "expr 1 + 1" } should equal("2")
+    SSH.once(username = "test") { _ executeAndTrim "echo 1" :: "echo 2" :: Nil } should equal("1" :: "2" :: Nil)
+    val year = SSH.once(username = "test") { _ executeAndTrim "expr 1 + 10" toInt }
     year should equal(11)
   }
   //==========================================================================================================
   test("Execution & file transferts within the same ssh session (autoclose)") {
-    SSH(username = "test") { ssh =>
+    SSH.once(username = "test") { ssh =>
       val msg = ssh execute "/bin/echo -n 'Hello %s'".format(util.Properties.userName)
 
       ssh.put(msg, "HelloWorld.txt")
@@ -70,8 +70,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
 
   //==========================================================================================================
   test("shell coherency check with long command lines (in //)") {
-    SSH(username="test") { ssh=>
-	  (1 to 20).par foreach {i =>
+    SSH.once(username="test") { ssh=>
+	  (1 to 10).par foreach {i =>
 	    ssh.shell {sh=>
 	        def mkmsg(base:String) = base*100+i
 		    sh.executeAndTrim("echo %s".format(mkmsg("Z"))) should equal(mkmsg("Z"))
@@ -85,7 +85,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("SSHShell : Bad performances obtained without persistent schell ssh channel (autoclose)") {
     val howmany=200
-    SSH(username = "test") { ssh =>
+    SSH.once(username = "test") { ssh =>
       val (dur, _) = howLongFor(() =>
         for (i <- 1 to howmany) { ssh execute "ls -d /tmp && echo 'done'" })
       val throughput = howmany.doubleValue() / dur * 1000
@@ -95,7 +95,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("SSHShell : Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
     val howmany=1000
-    SSH(username = "test") {
+    SSH.once(username = "test") {
       _.shell { sh =>
         val (dur, _) = howLongFor(() =>
           for (i <- 1 to howmany) { sh execute "ls -d /tmp && echo 'done'" })
@@ -107,7 +107,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("SSHExec : performances obtained using exec ssh channel (no persistency)") {
     val howmany=200
-    SSH(username = "test") { ssh =>
+    SSH.once(username = "test") { ssh =>
       val (dur, _) = howLongFor(() =>
         for (i <- 1 to howmany) { ssh execOnce "ls -d /tmp && echo 'done'"})
       val throughput = howmany.doubleValue() / dur * 1000
@@ -117,7 +117,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("Start a remote process in background") {
     import fr.janalyse.ssh.SSH
-    SSH(username = "test") { ssh =>
+    SSH.once(username = "test") { ssh =>
       
       var x=List.empty[String]
       
@@ -134,7 +134,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("Usage case example - for tutorial") {
     import fr.janalyse.ssh.SSH
-    SSH(host = "localhost", username = "test") { ssh =>
+    SSH.once(host = "localhost", username = "test") { ssh =>
       
       val uname = ssh executeAndTrim "uname -a"
       val fsstatus = ssh execute "df -m"

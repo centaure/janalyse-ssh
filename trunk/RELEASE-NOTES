@@ -14,7 +14,8 @@ JANALYSE-SSH
          execOnce & execOnceAndTrim
  - SSHExec : Do not rely on DaemonActor/Actor anymore
  - SSHShell : Removed init Thread.sleep => Better performances (throughput : 37 cmd/s instead 1cmd/s)
-
+ - SSH.connect becomes SSH.once
+ - Removing apply in SSH class as it may encourage bad usage, and close not called
 
  
 0.6.0

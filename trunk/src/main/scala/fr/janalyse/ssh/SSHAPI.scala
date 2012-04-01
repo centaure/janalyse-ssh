@@ -200,8 +200,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   
   def execute(cmd: SSHCommand) = 
-    //shell { _ execute cmd.cmd }
-    execOnce(cmd.cmd)
+    //shell { _ execute cmd.cmd }    // Using SSHShell channel  (lower performances)
+    execOnce(cmd.cmd)  // Using SSHExec channel (better performances)
 
   def executeAndTrim(cmd: SSHCommand) = execute(cmd).trim()
 
@@ -282,6 +282,7 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
   def waitForEnd {
     stdoutThread.join()
     stderrThread.join()
+    close()
   }
 
   def close() = channel.disconnect

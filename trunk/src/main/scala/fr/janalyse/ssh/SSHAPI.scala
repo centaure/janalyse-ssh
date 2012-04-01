@@ -29,6 +29,7 @@ import scala.util.{ Properties => SP }
 import java.io.File.{ separator => FS, pathSeparator => PS }
 import scala.collection.mutable.SynchronizedQueue
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.locks.LockSupport
 
 trait SSHAutoClose {
   // Automatic resource liberation
@@ -174,7 +175,17 @@ object SSH extends SSHAutoClose {
 class SSH(val options: SSHOptions) extends SSHAutoClose {
   private implicit val ssh = this
   private val jsch = new JSch
-  var jschsession: Session = initSession
+  val jschsession: Session = {
+    val idrsa = new File(options.sshUserDir, "id_rsa")
+    val iddsa = new File(options.sshUserDir, "id_dsa")
+    if (idrsa.exists) jsch.addIdentity(idrsa.getAbsolutePath)
+    if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
+    val ses = jsch.getSession(options.username, options.host, options.port)
+    ses setUserInfo SSHUserInfo(options.password, options.passphrase)
+    ses.connect(options.timeout.toInt)
+    ses
+  }
+
 
   def apply[T](proc: (SSH) => T) = proc(this)
 
@@ -184,20 +195,45 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   def noerr(data: Option[String]) {}
 
+  
   def run(cmd: String, out: Option[String] => Any, err: Option[String] => Any = noerr) = new SSHExec(cmd, out, err)
 
-  def execute(cmd: SSHCommand) = shell { _ execute cmd.cmd }
-
-  def execute(cmds: SSHBatch) = shell { _ batch cmds.cmdList }
+  
+  def execute(cmd: SSHCommand) = shell { _ execute cmd.cmd } // execOnce(cmd.cmd)
 
   def executeAndTrim(cmd: SSHCommand) = execute(cmd).trim()
 
   def executeAndTrimSplit(cmd: SSHCommand) = execute(cmd).trim().split("\r?\n")
 
+  
+  def execute(cmds: SSHBatch) = shell { _ batch cmds.cmdList }
+
   def executeAndTrim(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim }
 
   def executeAndTrimSplit(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim.split("\r?\n") }
 
+  
+  def execOnceAndTrim(scmd: SSHCommand) = execOnce(scmd).trim()
+
+  def execOnce(scmd: SSHCommand) = {
+    val sb = new StringBuilder()
+    def recvStandardOutput(content: Option[String]) {
+      for (c <- content) {
+        if (sb.size>0) sb.append("\n")
+        sb.append(c)
+      }
+    }
+    var runner:Option[SSHExec]=None
+    try { 
+      runner = Some(new SSHExec(scmd.cmd, recvStandardOutput, _ => None))
+      runner foreach {_.waitForEnd}
+    } finally {
+      runner foreach {_.close}
+    }
+    sb.toString()
+  }
+  
+  
   def get(remoteFilename: String) = ssh.ftp { _ get remoteFilename }
 
   def getBytes(remoteFilename: String) = ssh.ftp { _ getBytes remoteFilename }
@@ -214,46 +250,15 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   def newSftp = new SSHFtp
 
-  def close() {
-    if (jschsession != null) {
-      jschsession.disconnect
-      jschsession = null
-    }
-  }
-
-  private def initSession = {
-    if (jschsession == null || !jschsession.isConnected) {
-      close
-      val idrsa = new File(options.sshUserDir, "id_rsa")
-      val iddsa = new File(options.sshUserDir, "id_dsa")
-      if (idrsa.exists) jsch.addIdentity(idrsa.getAbsolutePath)
-      if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
-      jschsession = jsch.getSession(options.username, options.host, options.port)
-      jschsession setUserInfo SSHUserInfo(options.password, options.passphrase)
-      jschsession.connect(options.timeout.toInt)
-    }
-    jschsession
-  }
-
-  def execOnceAndTrim(scmd: SSHCommand) = execOnce(scmd).trim()
-
-  def execOnce(scmd: SSHCommand) = {
-    val sb = new StringBuilder()
-    def recvStandardOutput(content: Option[String]) {
-      for (c <- content) {
-        sb.append(c)
-        sb.append("\n")
-      }
-    }
-    val runner = new SSHExec(scmd.cmd, recvStandardOutput, _ => None)
-    runner.waitForEnd
-    sb.toString()
-  }
+  def close() { jschsession.disconnect }
 }
+
+
+
 
 class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => Any)(implicit ssh: SSH) {
 
-  val (channel, stdout, stderr, stdin) = {
+  private val (channel, stdout, stderr, stdin) = {
     val ch = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
     ch.setCommand(cmd.getBytes())
     val stdout = ch.getInputStream()
@@ -262,9 +267,10 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
     ch.connect(ssh.options.timeout.toInt)
     (ch, stdout, stderr, stdin)
   }
-  val stdoutThread = InputStreamThread(channel, stdout, out)
-  val stderrThread = InputStreamThread(channel, stderr, err)
+  private val stdoutThread = InputStreamThread(channel, stdout, out)
+  private val stderrThread = InputStreamThread(channel, stderr, err)
 
+  
   def giveInputLine(line: String) {
     stdin.write(line.getBytes())
     stdin.write("\n".getBytes())
@@ -276,7 +282,9 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
     stderrThread.join()
   }
 
-  class InputStreamThread(channel: ChannelExec, input: InputStream, output: Option[String] => Any) extends Thread {
+  def close() = channel.disconnect
+
+  private class InputStreamThread(channel: ChannelExec, input: InputStream, output: Option[String] => Any) extends Thread {
     override def run() {
       val bufsize = 16 * 1024
       val charset = Charset.forName(ssh.options.charset)
@@ -317,7 +325,7 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
       output(None)
     }
   }
-  object InputStreamThread {
+  private object InputStreamThread {
     def apply(channel: ChannelExec, input: InputStream, output: Option[String] => Any) = {
       val newthread = new InputStreamThread(channel, input, output)
       newthread.start()
@@ -325,43 +333,19 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
     }
   }
 
-  def close() = channel.disconnect
 }
 
 class SSHFtp(implicit ssh: SSH) {
-  private var jschftpchannel: ChannelSftp = null
-
-  def channel = {
-    if (jschftpchannel == null) {
-      //jschftpchannel.connect(link.connectTimeout)
-      var connected = false
-      var retryCount = ssh.options.retryCount
-      while (retryCount > 0 && !connected) {
-        try {
-          jschftpchannel = ssh.jschsession.openChannel("sftp").asInstanceOf[ChannelSftp]
-          jschftpchannel.connect(ssh.options.timeout.toInt)
-          connected = true
-        } catch {
-          case e =>
-            try { jschftpchannel.disconnect } catch { case _ => } finally { jschftpchannel = null }
-            retryCount -= 1
-            if (retryCount > 0) Thread.sleep(ssh.options.retryDelay)
-            else {
-              println("SSH CONNECT Maximum retry count reached, couldn't connect to remote system " + ssh.options.host)
-              e.printStackTrace
-            }
-        }
-      }
-    }
-    jschftpchannel
+  private val channel: ChannelSftp = {
+    //jschftpchannel.connect(link.connectTimeout)
+    val ch = ssh.jschsession.openChannel("sftp").asInstanceOf[ChannelSftp]
+    ch.connect(ssh.options.timeout.toInt)
+    ch
   }
 
   def close() = {
-    if (jschftpchannel != null) {
-      jschftpchannel.quit
-      jschftpchannel.disconnect
-      jschftpchannel = null
-    }
+    channel.quit
+    channel.disconnect
   }
 
   def get(filename: String): Option[String] = {
@@ -408,8 +392,9 @@ class SSHFtp(implicit ssh: SSH) {
 }
 
 class SSHShell(implicit ssh: SSH) {
-
+  val readyMessage = "ready-"+System.currentTimeMillis()
   val defaultPrompt = """-PRMT-: """
+  val customPromptGiven = ssh.options.prompt.isDefined
   val prompt = ssh.options.prompt getOrElse defaultPrompt
 
   val (channel, toServer, fromServer) = {
@@ -423,7 +408,7 @@ class SSHShell(implicit ssh: SSH) {
     val toServer = new Producer(pos)
     ch.setInputStream(pis)
 
-    val fromServer = new ConsumerOutputStream()
+    val fromServer = new ConsumerOutputStream(!customPromptGiven)
     ch.setOutputStream(fromServer)
 
     ch.connect(ssh.options.timeout.toInt)
@@ -439,13 +424,9 @@ class SSHShell(implicit ssh: SSH) {
     builder.result
   }
 
-  def close() = {
-    channel.disconnect()
-  }
+  def close() = channel.disconnect()
 
-  def executeAndContinue(cmd: String, cont: String => Unit): Unit = {
-    cont(execute(cmd))
-  }
+  def executeAndContinue(cmd: String, cont: String => Unit): Unit =  cont(execute(cmd))
 
   def executeAndTrim(cmd: String): String = execute(cmd).trim()
 
@@ -453,8 +434,7 @@ class SSHShell(implicit ssh: SSH) {
 
   def execute(cmd: String, timeout: Long = ssh.options.timeout): String = {
     sendCommand(cmd)
-    val result = fromServer.getResponse()
-    result
+    fromServer.getResponse()
   }
 
   private var doInit = true
@@ -467,14 +447,15 @@ class SSHShell(implicit ssh: SSH) {
         toServer.sendCommand("unset PAGER")
         toServer.sendCommand("COLUMNS=500")
         toServer.sendCommand("PS1='%s'".format(defaultPrompt))
-        toServer.sendCommand("echo 'started'")
         //toServer.sendCommand("set +o emacs")  // => Makes everything not working anymore, JSCH problem ?
         //toServer.sendCommand("set +o vi") // => Makes everything not working anymore, JSCH problem ?
-        Thread.sleep(1000) // TODO : Bad but Mandatory to get some response from JSCH => Find a better way
-        fromServer.getResponse()
-        while (fromServer.hasResponse()) fromServer.getResponse()
+        toServer.sendCommand("echo '%s'".format(readyMessage))
+        fromServer.waitReady()
+        fromServer.getResponse()  // everything until PS1='
+        fromServer.getResponse()  // 'started' in the echo command
+        fromServer.getResponse()  // Empty response to synch prompt
       } else {
-        Thread.sleep(1000) // TODO : Bad but Mandatory to get some response from JSCH => Find a better way
+        fromServer.waitReady()
         fromServer.getResponse() // For the initial prompt
       }
       doInit = false
@@ -490,9 +471,9 @@ class SSHShell(implicit ssh: SSH) {
     }
   }
 
-  class ConsumerOutputStream extends OutputStream {
+  class ConsumerOutputStream(checkReady:Boolean) extends OutputStream {
 
-    val resultsQueue = new ArrayBlockingQueue[String](100)
+    private val resultsQueue = new ArrayBlockingQueue[String](100)
 
     def now = System.currentTimeMillis()
 
@@ -503,14 +484,24 @@ class SSHShell(implicit ssh: SSH) {
       resultsQueue.take()
     }
 
-    val consumerAppender = new StringBuilder(8192)
-    var searchForPromptIndex = 0
-    val promptSize = prompt.size
-    var lastPromptChar = prompt.last
-
+    private var ready = checkReady
+    private val readyQueue = new ArrayBlockingQueue[String](1)
+    def waitReady() {
+      //Thread.sleep(500) // TODO : Bad but Mandatory to get some response from JSCH => Find a better way
+      if (ready==false) readyQueue.take()
+    }
+    
+    private val consumerAppender = new StringBuilder(8192)
+    private var searchForPromptIndex = 0
+    private val promptSize = prompt.size
+    private var lastPromptChar = prompt.last
     def write(b: Int) {
       if (b != 13) { //CR removed... CR is always added by JSCH !!!!
         consumerAppender.append(b.toChar) // TODO - Add charset support
+        if (ready==false && consumerAppender.endsWith(readyMessage)) {
+          ready=true
+          readyQueue.put("ready") // wait for at least some results, will tell us that the ssh cnx is ready
+        } else
         if (consumerAppender.endsWith(prompt)) {
           val promptIndex = consumerAppender.size - promptSize
           val firstNlIndex = consumerAppender.indexOf("\n")

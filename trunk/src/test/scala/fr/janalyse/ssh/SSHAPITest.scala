@@ -119,7 +119,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("Start a remote process in background") {
     import fr.janalyse.ssh.SSH
-    SSH.connect(username = "test") { implicit ssh =>
+    SSH(username = "test") { ssh =>
       
       var x=List.empty[String]
       

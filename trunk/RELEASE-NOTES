@@ -1,20 +1,20 @@
 JANALYSE-SSH
 
-TODO
- - SSHShell : Remove Thread.sleep
- 
 0.7.0
  - Added new method to SSH : newShell & newSftp for user to manage themselves shell and sftp session
  - Some internal changes to SSHExec class, in order to try to remove actor dependency. Mixing actors systems looks problematic
- - SSHShell new implementation, no more actors used, better performances and behavior, ...
+ - SSHShell new implementation, no more actors used, better performances and behavior, ... (throughput : 504 cmd/s using persistency)
  - SSHExec last result line is no longer lost
  - SSHOptions : new parameter : "prompt" to enable custom shell or console command to be use.
                 prompt provide to SSHShell the way to separate command results
  - SSHOptions : connectionTimeout renamed into timeout
  - Various cleanup and enhancements
  - Tests : compare performances persistent SSHShell versus SSHExec  commands throughputs
- - SSH : Add an execute immediate method which rely on SSHExec, not SSHShell !
+ - SSH : Add an execute immediate method which rely on SSHExec, not SSHShell ! (throughput : 62cmd/s) 
+         execOnce & execOnceAndTrim
  - SSHExec : Do not rely on DaemonActor/Actor anymore
+ - SSHShell : Removed init Thread.sleep => Better performances (throughput : 37 cmd/s instead 1cmd/s)
+
 
  
 0.6.0
@@ -23,5 +23,4 @@ TODO
  - update sbtassembly plugin to 0.7.3
  - background ssh execution API changes (run method)
  - temporary hack to remove CPU overhead within run method
-
 

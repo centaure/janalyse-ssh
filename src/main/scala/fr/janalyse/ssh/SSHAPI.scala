@@ -199,7 +199,9 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   def run(cmd: String, out: Option[String] => Any, err: Option[String] => Any = noerr) = new SSHExec(cmd, out, err)
 
   
-  def execute(cmd: SSHCommand) = shell { _ execute cmd.cmd } // execOnce(cmd.cmd)
+  def execute(cmd: SSHCommand) = 
+    //shell { _ execute cmd.cmd }
+    execOnce(cmd.cmd)
 
   def executeAndTrim(cmd: SSHCommand) = execute(cmd).trim()
 

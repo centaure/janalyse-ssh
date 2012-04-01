@@ -1,10 +1,10 @@
 #!/bin/sh
-exec java -jar ../onejar/target/jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
+exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
 !#
 
 import fr.janalyse.ssh._
 
-SSH.connect(host="localhost", username="test") { ssh =>
-  println(ssh.execute("""echo -n "Hello World from `hostname`" """))
+SSH.shell(host="localhost", username="test", password=Some("testtest")) { sh =>
+  println(sh.execute("""echo -n "Hello World from `hostname`" """))
 }
 

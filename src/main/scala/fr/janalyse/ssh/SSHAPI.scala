@@ -99,7 +99,7 @@ case class SSHOptions(
 
 object SSH extends SSHAutoClose {
 
-  def connect[T](
+  def once[T](
     username: String = util.Properties.userName,
     password: Option[String] = None,
     passphrase: Option[String] = None,
@@ -108,10 +108,10 @@ object SSH extends SSHAutoClose {
     timeout: Int = 30000)(withssh: (SSH) => T): T = usingSSH(new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout))) {
     withssh(_)
   }
-  def connect[T](options: SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
+  def once[T](options: SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
     withssh(_)
   }
-  def connect[T](someOptions: Option[SSHOptions])(withssh: (SSH) => Option[T]) = someOptions map { options =>
+  def once[T](someOptions: Option[SSHOptions])(withssh: (SSH) => Option[T]) = someOptions map { options =>
     usingSSH(new SSH(options)) {
       withssh(_)
     }
@@ -187,7 +187,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   }
 
 
-  def apply[T](proc: (SSH) => T) = proc(this)
+  //def apply[T](proc: (SSH) => T) = proc(this)  => Removed because it doesn't deal with close...
 
   def shell[T](proc: (SSHShell) => T) = usingSSH(new SSHShell) { proc(_) }
 
@@ -285,7 +285,12 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
     close()
   }
 
-  def close() = channel.disconnect
+  def close() = {
+    stdin.close()
+    stdoutThread.interrupt()
+    stderrThread.interrupt()
+    channel.disconnect
+  }
 
   private class InputStreamThread(channel: ChannelExec, input: InputStream, output: Option[String] => Any) extends Thread {
     override def run() {
@@ -427,7 +432,11 @@ class SSHShell(implicit ssh: SSH) {
     builder.result
   }
 
-  def close() = channel.disconnect()
+  def close() = {
+    fromServer.close()
+    toServer.close()
+    channel.disconnect()
+  }
 
   def executeAndContinue(cmd: String, cont: String => Unit): Unit =  cont(execute(cmd))
 
@@ -472,6 +481,7 @@ class SSHShell(implicit ssh: SSH) {
       output.write("\n".getBytes)
       output.flush()
     }
+    def close() {output.close()}
   }
 
   class ConsumerOutputStream(checkReady:Boolean) extends OutputStream {

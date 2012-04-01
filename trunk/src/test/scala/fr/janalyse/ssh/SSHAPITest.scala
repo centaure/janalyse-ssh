@@ -22,7 +22,6 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.junit.JUnitRunner
 import scala.io.Source
 import actors.Actor._
-import SSH._
 import scala.util.Properties
 import java.io.File
 
@@ -38,15 +37,15 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
 
   //==========================================================================================================
   test("One line exec with automatic resource close") {
-    connect(username = "test") { _ execute "expr 1 + 1" } should equal("2\n")
-    connect(username = "test") { _ executeAndTrim "expr 1 + 1" } should equal("2")
-    connect(username = "test") { _ executeAndTrim "echo 1" :: "echo 2" :: Nil } should equal("1" :: "2" :: Nil)
-    val year = connect(username = "test") { _ executeAndTrim "expr 1 + 10" toInt }
+    SSH(username = "test") { _ execute "expr 1 + 1" trim } should equal("2")
+    SSH(username = "test") { _ executeAndTrim "expr 1 + 1" } should equal("2")
+    SSH(username = "test") { _ executeAndTrim "echo 1" :: "echo 2" :: Nil } should equal("1" :: "2" :: Nil)
+    val year = SSH(username = "test") { _ executeAndTrim "expr 1 + 10" toInt }
     year should equal(11)
   }
   //==========================================================================================================
   test("Execution & file transferts within the same ssh session (autoclose)") {
-    connect(username = "test") { ssh =>
+    SSH(username = "test") { ssh =>
       val msg = ssh execute "/bin/echo -n 'Hello %s'".format(util.Properties.userName)
 
       ssh.put(msg, "HelloWorld.txt")
@@ -70,22 +69,23 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   //==========================================================================================================
-  test("shell coherency check with long command lines") {
-    SSH.shell(username="test") { sh=>
-	  (1 to 30) foreach {i =>
-        def mkmsg(base:String) = base*100+i
-	    sh.executeAndTrim("echo %s".format(mkmsg("Z"))) should equal(mkmsg("Z"))
-	    sh.executeAndTrim("echo %s".format(mkmsg("ga"))) should equal(mkmsg("ga"))
-	    sh.executeAndTrim("echo %s".format(mkmsg("PXY"))) should equal(mkmsg("PXY"))
-        sh.executeAndTrim("echo %s".format(mkmsg("GLoups"))) should equal(mkmsg("GLoups"))
+  test("shell coherency check with long command lines (in //)") {
+    SSH(username="test") { ssh=>
+	  (1 to 20).par foreach {i =>
+	    ssh.shell {sh=>
+	        def mkmsg(base:String) = base*100+i
+		    sh.executeAndTrim("echo %s".format(mkmsg("Z"))) should equal(mkmsg("Z"))
+		    sh.executeAndTrim("echo %s".format(mkmsg("ga"))) should equal(mkmsg("ga"))
+		    sh.executeAndTrim("echo %s".format(mkmsg("PXY"))) should equal(mkmsg("PXY"))
+	        sh.executeAndTrim("echo %s".format(mkmsg("GLoups"))) should equal(mkmsg("GLoups"))
+	    }
 	  }
     }
   }
   //==========================================================================================================
   test("SSHShell : Bad performances obtained without persistent schell ssh channel (autoclose)") {
-    val howmany=10
-    connect(username = "test") { ssh =>
-      val remotedate = ssh execute "date"
+    val howmany=200
+    SSH(username = "test") { ssh =>
       val (dur, _) = howLongFor(() =>
         for (i <- 1 to howmany) { ssh execute "ls -d /tmp && echo 'done'" })
       val throughput = howmany.doubleValue() / dur * 1000
@@ -94,10 +94,9 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
   //==========================================================================================================
   test("SSHShell : Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
-    val howmany=200
-    connect(username = "test") {
+    val howmany=1000
+    SSH(username = "test") {
       _.shell { sh =>
-        val remotedate = sh execute "date"
         val (dur, _) = howLongFor(() =>
           for (i <- 1 to howmany) { sh execute "ls -d /tmp && echo 'done'" })
         val throughput = howmany.doubleValue() / dur * 1000
@@ -107,9 +106,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
   //==========================================================================================================
   test("SSHExec : performances obtained using exec ssh channel (no persistency)") {
-    val howmany=10
-    connect(username = "test") { ssh =>
-      val remotedate = ssh execOnce "date"
+    val howmany=200
+    SSH(username = "test") { ssh =>
       val (dur, _) = howLongFor(() =>
         for (i <- 1 to howmany) { ssh execOnce "ls -d /tmp && echo 'done'"})
       val throughput = howmany.doubleValue() / dur * 1000
@@ -126,8 +124,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       def receiver(data:Option[String]) {data foreach {d => x = x :+ d} }
       val executor = ssh.run("vmstat 1 5", receiver)
 
-      Thread.sleep(5000)
-      executor.close
+      executor.waitForEnd
 
       x.zipWithIndex map { case (l, i) => info("%d : %s".format(i, l)) }
       x.size should equal(7)      
@@ -137,10 +134,12 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("Usage case example - for tutorial") {
     import fr.janalyse.ssh.SSH
-    SSH.connect(host = "localhost", username = "test") { ssh =>
+    SSH(host = "localhost", username = "test") { ssh =>
+      
       val uname = ssh executeAndTrim "uname -a"
       val fsstatus = ssh execute "df -m"
       val fmax = ssh get "/proc/sys/fs/file-max"
+      
       ssh.shell { sh => // For higher performances
         val hostname = sh.executeAndTrim("hostname")
         val files = sh.execute("find /usr/lib/")
@@ -152,9 +151,19 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       // output streaming
       def receiver(data:Option[String]) {data foreach {println(_)}}
       val executor = ssh.run("vmstat 1 3", receiver)
-
-      Thread.sleep(4000)
+      executor.waitForEnd
     }
+  }
+  
+  test("Simultaenous SSH operations") {
+    val started = System.currentTimeMillis()
+    val h="127.0.0.1"
+    val cnxinfos = List(h,h,h,h,h) map {h=> SSHOptions(host=h, username="test")}
+    val sshs   = cnxinfos.par map {SSH(_)}
+    val unames = sshs map {_ execute "date; sleep 5"}
+    info(unames.mkString("----"))
+    
+    (System.currentTimeMillis() - started) should be < (6000L)  //(and not 5s * 5 = 25s)
   }
 
   test("Simplified persistent ssh shell usage") {
@@ -180,88 +189,5 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     stat should not equal(None)
     stat.get.size should be >(0)
   }
-
-  //==========================================================================================================
-/*
-  ignore("SSHAPI process must exit naturally, when no operation is in progress") {
-    import collection.JavaConversions._
-    import java.io.File.{separator=>FS, pathSeparator=>PS}
-    import scala.sys.process._
-    val rt = Runtime.getRuntime()
-    
-    val classpath  = Properties.javaClassPath+PS+"/opt/scala/"+FS+"lib"+FS+"scala-library.jar"
-    
-    val env        = System.getenv()
-    val cwd        = new File(".")
-    val javacmd    = Properties.javaHome+FS+"bin"+FS+"java"
-    val cmd        = javacmd::"-classpath"::classpath::"fr.janalyse.ssh.SubProcessTest"::Nil
-    val subprocbd  = Process(cmd, Some(cwd), env.toList:_*)
-    var stdout     = StringBuilder.newBuilder
-    var stderr     = StringBuilder.newBuilder
-    val proclogger = ProcessLogger(stdout.append(_), stderr.append(_))
-    val proc       = subprocbd.run(proclogger)
-    Thread.sleep(2000)
-
-    val err=stderr.toString()
-    
-    if (err.size>0) info(err)
-    
-    err should have length(0)
-    
-    subprocbd.hasExitValue should equal(true)
-    
-    stdout.toString.contains("20") should equal(true)
-    
-    proc.exitValue should equal (0)
-    
-  }
-  //==========================================================================================================
-*/
-
-  
 }
-
-
-
-
-
-/*
- *  THE FOLLOWING PROBLEM HAS BEEN SOLVED BY REMOVING messages sending from external threads... 
- *  from out of actor context.
- * 
-Process hangs on :
- 
-Name: main
-State: WAITING on java.lang.Thread@404eb2
-Total blocked: 4  Total waited: 6
-
-Stack trace: 
-java.lang.Object.wait(Native Method)
-java.lang.Thread.join(Thread.java:1186)
-java.lang.Thread.join(Thread.java:1239)
-scala.tools.nsc.util.package$$anonfun$waitingForThreads$1.apply(package.scala:30)
-scala.tools.nsc.util.package$$anonfun$waitingForThreads$1.apply(package.scala:30)
-scala.collection.immutable.HashSet$HashSet1.foreach(HashSet.scala:130)
-scala.collection.immutable.HashSet$HashTrieSet.foreach(HashSet.scala:275)
-scala.tools.nsc.util.package$.waitingForThreads(package.scala:30)
-scala.tools.nsc.ScriptRunner.withCompiledScript(ScriptRunner.scala:130)
-scala.tools.nsc.ScriptRunner.runScript(ScriptRunner.scala:188)
-scala.tools.nsc.ScriptRunner.runScriptAndCatch(ScriptRunner.scala:201)
-scala.tools.nsc.MainGenericRunner.runTarget$1(MainGenericRunner.scala:58)
-scala.tools.nsc.MainGenericRunner.process(MainGenericRunner.scala:80)
-scala.tools.nsc.MainGenericRunner$.main(MainGenericRunner.scala:89)
-scala.tools.nsc.MainGenericRunner.main(MainGenericRunner.scala)
-// ----------------------------
- -Yrepl-sync : 
- */
-
-/*
-object SubProcessTest {
-  def main(args:Array[String]) {
-    connect(username = "test") {ssh => 
-      println(ssh execute "expr 10 + 10")
-    }
-  }
-}
-*/
 

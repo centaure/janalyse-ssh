@@ -35,17 +35,20 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     (end - begin, result)
   }
 
+  //val sshopts = SSHOptions(host="127.0.0.1", port=22, username="test", password=Some("testtest"))
+  val sshopts = SSHOptions(host="192.168.2.238", port=22022, username="test", password=Some("testtest"))
+  
   //==========================================================================================================
   test("One line exec with automatic resource close") {
-    SSH.once(username = "test") { _ execute "expr 1 + 1" trim } should equal("2")
-    SSH.once(username = "test") { _ executeAndTrim "expr 1 + 1" } should equal("2")
-    SSH.once(username = "test") { _ executeAndTrim "echo 1" :: "echo 2" :: Nil } should equal("1" :: "2" :: Nil)
-    val year = SSH.once(username = "test") { _ executeAndTrim "expr 1 + 10" toInt }
+    SSH.once(sshopts) { _ execute "expr 1 + 1" trim } should equal("2")
+    SSH.once(sshopts) { _ executeAndTrim "expr 1 + 1" } should equal("2")
+    SSH.once(sshopts) { _ executeAndTrim "echo 1" :: "echo 2" :: Nil } should equal("1" :: "2" :: Nil)
+    val year = SSH.once(sshopts) { _ executeAndTrim "expr 1 + 10" toInt }
     year should equal(11)
   }
   //==========================================================================================================
   test("Execution & file transferts within the same ssh session (autoclose)") {
-    SSH.once(username = "test") { ssh =>
+    SSH.once(sshopts) { ssh =>
       val msg = ssh execute "/bin/echo -n 'Hello %s'".format(util.Properties.userName)
 
       ssh.put(msg, "HelloWorld.txt")
@@ -60,7 +63,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   
   //==========================================================================================================
   test("shell coherency check") {
-    SSH.shell(username="test") { sh=>
+    SSH.shell(sshopts) { sh=>
 	  (1 to 100) foreach {i =>
 	  sh.executeAndTrim("echo ta"+i) should equal("ta"+i)
 	  sh.executeAndTrim("echo ga"+i) should equal("ga"+i)
@@ -70,7 +73,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
 
   //==========================================================================================================
   test("shell coherency check with long command lines (in //)") {
-    SSH.once(username="test") { ssh=>
+    SSH.once(sshopts) { ssh=>
 	  (1 to 10).par foreach {i =>
 	    ssh.shell {sh=>
 	        def mkmsg(base:String) = base*100+i
@@ -85,7 +88,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("SSHShell : Bad performances obtained without persistent schell ssh channel (autoclose)") {
     val howmany=200
-    SSH.once(username = "test") { ssh =>
+    SSH.once(sshopts) { ssh =>
       val (dur, _) = howLongFor(() =>
         for (i <- 1 to howmany) { ssh execute "ls -d /tmp && echo 'done'" })
       val throughput = howmany.doubleValue() / dur * 1000
@@ -95,7 +98,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("SSHShell : Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
     val howmany=1000
-    SSH.once(username = "test") {
+    SSH.once(sshopts) {
       _.shell { sh =>
         val (dur, _) = howLongFor(() =>
           for (i <- 1 to howmany) { sh execute "ls -d /tmp && echo 'done'" })
@@ -107,7 +110,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("SSHExec : performances obtained using exec ssh channel (no persistency)") {
     val howmany=200
-    SSH.once(username = "test") { ssh =>
+    SSH.once(sshopts) { ssh =>
       val (dur, _) = howLongFor(() =>
         for (i <- 1 to howmany) { ssh execOnce "ls -d /tmp && echo 'done'"})
       val throughput = howmany.doubleValue() / dur * 1000
@@ -117,7 +120,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("Start a remote process in background") {
     import fr.janalyse.ssh.SSH
-    SSH.once(username = "test") { ssh =>
+    SSH.once(sshopts) { ssh =>
       
       var x=List.empty[String]
       
@@ -134,7 +137,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("Usage case example - for tutorial") {
     import fr.janalyse.ssh.SSH
-    SSH.once(host = "localhost", username = "test") { ssh =>
+    SSH.once(sshopts) { ssh =>
       
       val uname = ssh executeAndTrim "uname -a"
       val fsstatus = ssh execute "df -m"
@@ -157,8 +160,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   
   test("Simultaenous SSH operations") {
     val started = System.currentTimeMillis()
-    val h="127.0.0.1"
-    val cnxinfos = List(h,h,h,h,h) map {h=> SSHOptions(host=h, username="test")}
+    val cnxinfos = List(sshopts, sshopts, sshopts, sshopts, sshopts)
     val sshs   = cnxinfos.par map {SSH(_)}
     val unames = sshs map {_ execute "date; sleep 5"}
     info(unames.mkString("----"))
@@ -174,7 +176,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   test("Simplified persistent ssh shell and ftp usage") {
-    SSH.shellAndFtp(host = "localhost", username = "test") { (sh, ftp) =>
+    SSH.shellAndFtp(sshopts) { (sh, ftp) =>
       sh.execute("ls")
       sh.execute("uname")
       ftp.get("/proc/stat")
@@ -183,7 +185,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
   
   test("simplified usage with sshOptions as Option") {
-    val cnxinfo = Some(SSHOptions(host="localhost", username="test"))
+    val cnxinfo = Some(sshopts)
     val stat = SSH.ftp(cnxinfo) {_.get("/proc/stat")}
     
     stat should not equal(None)

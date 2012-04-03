@@ -416,7 +416,7 @@ class SSHShell(implicit ssh: SSH) {
     val toServer = new Producer(pos)
     ch.setInputStream(pis)
 
-    val fromServer = new ConsumerOutputStream(!customPromptGiven)
+    val fromServer = new ConsumerOutputStream(customPromptGiven) // if the customPrompt is given, we consider we're ready to send/receive commands
     ch.setOutputStream(fromServer)
 
     ch.connect(ssh.options.timeout.toInt)
@@ -453,7 +453,7 @@ class SSHShell(implicit ssh: SSH) {
   private def sendCommand(cmd: String): Unit = {
     if (doInit) {
       if (ssh.options.prompt.isEmpty) {
-        // if no prompt is given we assume that a standard sh/bash/ksk shell is used
+        // if no prompt is given we assume that a standard sh/bash/ksh shell is used
         toServer.sendCommand("unset LS_COLORS")
         toServer.sendCommand("unset EDITOR")
         toServer.sendCommand("unset PAGER")
@@ -461,11 +461,9 @@ class SSHShell(implicit ssh: SSH) {
         toServer.sendCommand("PS1='%s'".format(defaultPrompt))
         //toServer.sendCommand("set +o emacs")  // => Makes everything not working anymore, JSCH problem ?
         //toServer.sendCommand("set +o vi") // => Makes everything not working anymore, JSCH problem ?
-        toServer.sendCommand("echo '%s'".format(readyMessage))
+        toServer.sendCommand("echo '%s'".format(readyMessage)) // ' are important to distinguish between the command and the result
         fromServer.waitReady()
-        fromServer.getResponse()  // everything until PS1='
-        fromServer.getResponse()  // 'started' in the echo command
-        fromServer.getResponse()  // Empty response to synch prompt
+        fromServer.getResponse()  // ready response
       } else {
         fromServer.waitReady()
         fromServer.getResponse() // For the initial prompt
@@ -511,9 +509,12 @@ class SSHShell(implicit ssh: SSH) {
     def write(b: Int) {
       if (b != 13) { //CR removed... CR is always added by JSCH !!!!
         consumerAppender.append(b.toChar) // TODO - Add charset support
-        if (ready==false && consumerAppender.endsWith(readyMessage)) {
-          ready=true
-          readyQueue.put("ready") // wait for at least some results, will tell us that the ssh cnx is ready
+        if (!ready) { // We want the response and only the response, not the echoed command, thats's why the quote is prefixed
+          if (consumerAppender.endsWith(readyMessage) && !consumerAppender.endsWith("'"+readyMessage)) {
+            // wait for at least some results, will tell us that the ssh cnx is ready
+            ready=true
+            readyQueue.put("ready") 
+          }
         } else
         if (consumerAppender.endsWith(prompt)) {
           val promptIndex = consumerAppender.size - promptSize

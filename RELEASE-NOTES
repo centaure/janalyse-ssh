@@ -1,5 +1,10 @@
 JANALYSE-SSH
 
+TODO : Add tests with a remote host, in addition to localhost 
+
+0.7.1
+ - fix big issue with SSHShell results separator process. => not seen using localhost tests
+
 0.7.0
  - Added new method to SSH : newShell & newSftp for user to manage themselves shell and sftp session
  - Some internal changes to SSHExec class, in order to try to remove actor dependency. Mixing actors systems looks problematic

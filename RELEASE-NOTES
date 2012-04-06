@@ -2,8 +2,14 @@ JANALYSE-SSH
 
 TODO : Add tests with a remote host, in addition to localhost 
 
+
+0.7.2 INPG
+ - added a package object jassh to define shortcuts to fr.janalyse.ssh.SSH class and object
+
+
 0.7.1
  - fix big issue with SSHShell results separator process. => not seen using localhost tests => Must add remote tests !!
+
 
 0.7.0
  - Added new method to SSH : newShell & newSftp for user to manage themselves shell and sftp session

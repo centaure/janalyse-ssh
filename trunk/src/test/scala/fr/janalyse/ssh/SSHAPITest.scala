@@ -35,8 +35,9 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     (end - begin, result)
   }
 
-  //val sshopts = SSHOptions(host="127.0.0.1", port=22, username="test", password=Some("testtest"))
-  val sshopts = SSHOptions(host="192.168.2.238", port=22022, username="test", password=Some("testtest"))
+  val sshopts = SSHOptions(host="127.0.0.1", port=22, username="test", password=Some("testtest"))
+  //val sshopts = SSHOptions(host="192.168.2.238", port=22022, username="test", password=Some("testtest"))
+  //val sshopts = SSHOptions(host="www.janalyse.fr")
   
   //==========================================================================================================
   test("One line exec with automatic resource close") {
@@ -165,7 +166,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     val unames = sshs map {_ execute "date; sleep 5"}
     info(unames.mkString("----"))
     
-    (System.currentTimeMillis() - started) should be < (6000L)  //(and not 5s * 5 = 25s)
+    (System.currentTimeMillis() - started) should be < (8000L)  //(and not 5s * 5 = 25s)
   }
 
   test("Simplified persistent ssh shell usage") {

@@ -1,0 +1,6 @@
+#!/bin/sh
+exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
+!#
+
+println(jassh.SSH.shell("localhost", "test", Some("testtest")) { _ execute "echo -n Hello `hostname`"})
+

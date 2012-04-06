@@ -3,5 +3,5 @@ exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
 !#
 
 jassh.SSH.once("localhost", "test", password=Some("testtest"))  {
-  _.run("vmstat 1 10", (l)=> l foreach {println(_)}).waitForEnd
+  _.run("vmstat 1 10", println(_.getOrElse("")).waitForEnd
 }

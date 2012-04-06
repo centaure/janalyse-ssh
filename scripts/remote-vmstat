@@ -2,11 +2,6 @@
 exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
 !#
 
-import fr.janalyse.ssh._
-
-SSH.once(host="localhost", username="test", password=Some("testtest"))  { ssh =>
-  val executor = ssh.run("vmstat 1 10", (l)=> l foreach {println(_)})
-  executor.waitForEnd
+jassh.SSH.once("localhost", "test", password=Some("testtest"))  {
+  _.run("vmstat 1 10", (l)=> l foreach {println(_)}).waitForEnd
 }
-
-

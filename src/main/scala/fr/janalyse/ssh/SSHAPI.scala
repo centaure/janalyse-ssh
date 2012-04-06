@@ -85,10 +85,10 @@ case class StandardErrorClosed(line:String="Finished") extends OutputMessage
 */
 
 case class SSHOptions(
+  host: String = "localhost",
   username: String = util.Properties.userName,
   password: Option[String] = None,
   passphrase: Option[String] = None,
-  host: String = "localhost",
   port: Int = 22,
   prompt: Option[String] = None,
   timeout: Long = 30000,
@@ -100,12 +100,12 @@ case class SSHOptions(
 object SSH extends SSHAutoClose {
 
   def once[T](
+    host: String = "localhost",
     username: String = util.Properties.userName,
     password: Option[String] = None,
     passphrase: Option[String] = None,
-    host: String = "localhost",
     port: Int = 22,
-    timeout: Int = 30000)(withssh: (SSH) => T): T = usingSSH(new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout))) {
+    timeout: Int = 30000)(withssh: (SSH) => T): T = usingSSH(new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))) {
     withssh(_)
   }
   def once[T](options: SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
@@ -118,12 +118,12 @@ object SSH extends SSHAutoClose {
   }
 
   def shell[T](
+    host: String = "localhost",
     username: String = util.Properties.userName,
     password: Option[String] = None,
     passphrase: Option[String] = None,
-    host: String = "localhost",
     port: Int = 22,
-    timeout: Int = 30000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout))(withsh)
+    timeout: Int = 30000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withsh)
 
   def shell[T](options: SSHOptions)(withsh: (SSHShell) => T): T = usingSSH(new SSH(options)) { ssh =>
     ssh.shell { sh => withsh(sh) }
@@ -131,12 +131,12 @@ object SSH extends SSHAutoClose {
   def shell[T](someOptions: Option[SSHOptions])(withsh: (SSHShell) => T): Option[T] = someOptions map { shell[T](_)(withsh) }
 
   def ftp[T](
+    host: String = "localhost",
     username: String = util.Properties.userName,
     password: Option[String] = None,
     passphrase: Option[String] = None,
-    host: String = "localhost",
     port: Int = 22,
-    timeout: Int = 30000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout))(withftp)
+    timeout: Int = 30000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withftp)
 
   def ftp[T](options: SSHOptions)(withftp: (SSHFtp) => T): T = usingSSH(new SSH(options)) { ssh =>
     ssh.ftp { ftp => withftp(ftp) }
@@ -144,12 +144,12 @@ object SSH extends SSHAutoClose {
   def ftp[T](someOptions: Option[SSHOptions])(withftp: (SSHFtp) => T): Option[T] = someOptions map { ftp[T](_)(withftp) }
 
   def shellAndFtp[T](
+    host: String = "localhost",
     username: String = util.Properties.userName,
     password: Option[String] = None,
     passphrase: Option[String] = None,
-    host: String = "localhost",
     port: Int = 22,
-    timeout: Int = 30000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout))(withshftp)
+    timeout: Int = 30000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withshftp)
 
   def shellAndFtp[T](options: SSHOptions)(withshftp: (SSHShell, SSHFtp) => T): T = usingSSH(new SSH(options)) { ssh =>
     ssh.shell { sh => ssh.ftp { ftp => withshftp(sh, ftp) } }
@@ -157,12 +157,12 @@ object SSH extends SSHAutoClose {
   def shellAndFtp[T](someOptions: Option[SSHOptions])(withshftp: (SSHShell, SSHFtp) => T): Option[T] = someOptions map { shellAndFtp[T](_)(withshftp) }
 
   def apply(
+    host: String = "localhost",
     username: String = util.Properties.userName,
     password: Option[String] = None,
     passphrase: Option[String] = None,
-    host: String = "localhost",
     port: Int = 22,
-    timeout: Int = 30000) = new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, host = host, port = port, timeout = timeout))
+    timeout: Int = 30000) = new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
 
   def apply(options: SSHOptions) = new SSH(options)
   def apply(someOptions: Option[SSHOptions]): Option[SSH] = someOptions map { new SSH(_) }

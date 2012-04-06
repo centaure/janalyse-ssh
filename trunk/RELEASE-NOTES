@@ -5,6 +5,7 @@ TODO : Add tests with a remote host, in addition to localhost
 
 0.7.2 INPG
  - added a package object jassh to define shortcuts to fr.janalyse.ssh.SSH class and object
+ - SSHOptions, host parameter is now in first position !
 
 
 0.7.1

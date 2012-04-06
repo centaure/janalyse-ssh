@@ -35,9 +35,9 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     (end - begin, result)
   }
 
-  val sshopts = SSHOptions(host="127.0.0.1", port=22, username="test", password=Some("testtest"))
-  //val sshopts = SSHOptions(host="192.168.2.238", port=22022, username="test", password=Some("testtest"))
-  //val sshopts = SSHOptions(host="www.janalyse.fr")
+  val sshopts = SSHOptions("127.0.0.1", "test", password=Some("testtest"))
+  //val sshopts = SSHOptions("192.168.2.238", "test", password=Some("testtest"), port=22022)
+  //val sshopts = SSHOptions("www.janalyse.fr")
   
   //==========================================================================================================
   test("One line exec with automatic resource close") {
@@ -170,7 +170,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   test("Simplified persistent ssh shell usage") {
-    SSH.shell(host = "localhost", username = "test") { sh =>
+    SSH.shell("localhost", "test") { sh =>
       sh.execute("ls")
       sh.execute("uname")
     }

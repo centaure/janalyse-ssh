@@ -1,6 +1,6 @@
 name := "janalyse-ssh"
 
-version := "0.7.2"
+version := "0.7.3"
 
 organization :="fr.janalyse"
 
@@ -16,7 +16,7 @@ libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
   deps :+ ("org.scalatest" %% "scalatest" % testVersion % "test")
 }
 
-libraryDependencies += "com.jcraft" % "jsch" % "0.1.46" % "compile"
+libraryDependencies += "com.jcraft" % "jsch" % "0.1.47" % "compile"
 
 libraryDependencies += "junit" % "junit" % "4.10" % "test"
 

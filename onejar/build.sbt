@@ -18,6 +18,6 @@ libraryDependencies <++=  scalaVersion { sv =>
        ("org.scala-lang" % "scala-swing"     % sv  % "compile")  ::Nil
 }
 
-libraryDependencies += "fr.janalyse"   %% "janalyse-ssh" % "0.7.2" % "compile"
+libraryDependencies += "fr.janalyse"   %% "janalyse-ssh" % "0.7.3" % "compile"
 
 resolvers += "JAnalyse Repository" at "http://www.janalyse.fr/repository/"

@@ -3,10 +3,13 @@ JANALYSE-SSH
 TODO : Add tests with a remote host, in addition to localhost 
 
 
+0.7.3 INPG
+ - SSHOptions now contains an extra field "name" which allow user to friendly identify a remote ssh system
+ - JCSH updated to release 0.1.47
+
 0.7.2
  - added a package object jassh to define shortcuts to fr.janalyse.ssh.SSH class and object
  - SSHOptions, host parameter is now in first position !
-
 
 0.7.1
  - fix big issue with SSHShell results separator process. => not seen using localhost tests => Must add remote tests !!

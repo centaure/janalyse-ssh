@@ -89,6 +89,7 @@ case class SSHOptions(
   username: String = util.Properties.userName,
   password: Option[String] = None,
   passphrase: Option[String] = None,
+  name: Option[String] = None,
   port: Int = 22,
   prompt: Option[String] = None,
   timeout: Long = 30000,

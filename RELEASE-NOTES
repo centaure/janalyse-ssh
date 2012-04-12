@@ -8,6 +8,7 @@ TODO : Add tests with a remote host, in addition to localhost
  - SSHOptions now contains an extra field "name" which allow user to friendly identify a remote ssh system
  - SSHOptions password type is now of SSHPassword type instead of String.
    Implicit conversions is provided from String, Option[String]
+ - SSHShell batch method renamed to execute
 
 
 ------------------------------------------------------------------

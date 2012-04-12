@@ -2,19 +2,26 @@ JANALYSE-SSH
 
 TODO : Add tests with a remote host, in addition to localhost 
 
-
-0.7.3 INPG
- - SSHOptions now contains an extra field "name" which allow user to friendly identify a remote ssh system
+------------------------------------------------------------------
+0.7.3
  - JCSH updated to release 0.1.47
+ - SSHOptions now contains an extra field "name" which allow user to friendly identify a remote ssh system
+ - SSHOptions password type is now of SSHPassword type instead of String.
+   Implicit conversions is provided from String, Option[String]
 
+
+------------------------------------------------------------------
 0.7.2
  - added a package object jassh to define shortcuts to fr.janalyse.ssh.SSH class and object
  - SSHOptions, host parameter is now in first position !
 
+
+------------------------------------------------------------------
 0.7.1
  - fix big issue with SSHShell results separator process. => not seen using localhost tests => Must add remote tests !!
 
 
+------------------------------------------------------------------
 0.7.0
  - Added new method to SSH : newShell & newSftp for user to manage themselves shell and sftp session
  - Some internal changes to SSHExec class, in order to try to remove actor dependency. Mixing actors systems looks problematic
@@ -33,6 +40,7 @@ TODO : Add tests with a remote host, in addition to localhost
  - Removing apply in SSH class as it may encourage bad usage, and close not called
 
  
+------------------------------------------------------------------
 0.6.0
  - update jsch to 0.1.46
  - update sbteclipse plugin to 2.0.0

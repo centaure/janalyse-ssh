@@ -1,0 +1,8 @@
+#!/bin/sh
+exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
+!#
+
+jassh.SSH.shell("localhost", "test", password=Some("testtest")) { sh =>
+  println(sh.execute("""echo -n "Hello World from `hostname`" """))
+}
+

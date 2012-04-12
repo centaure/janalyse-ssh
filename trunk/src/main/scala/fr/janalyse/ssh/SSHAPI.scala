@@ -74,21 +74,21 @@ object SSHRemoteFile {
   implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
 
-/*
-trait OutputMessage {
-  val line: String
+
+case class SSHPassword(password:Option[String])
+
+object NoPassword extends SSHPassword(None)
+
+object SSHPassword {
+  implicit def string2password(pass:String) = new SSHPassword(Some(pass))
+  implicit def stringOpt2password(passopt:Option[String]) = new SSHPassword(passopt) 
 }
-case class StandardOutputMessage(line: String) extends OutputMessage
-case class StandardErrorMessage(line: String) extends OutputMessage
-case class StandardOutputClosed(line:String="Finished") extends OutputMessage 
-case class StandardErrorClosed(line:String="Finished") extends OutputMessage
-*/
 
 case class SSHOptions(
   host: String = "localhost",
   username: String = util.Properties.userName,
-  password: Option[String] = None,
-  passphrase: Option[String] = None,
+  password: SSHPassword = NoPassword,
+  passphrase: SSHPassword = NoPassword,
   name: Option[String] = None,
   port: Int = 22,
   prompt: Option[String] = None,
@@ -182,7 +182,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     if (idrsa.exists) jsch.addIdentity(idrsa.getAbsolutePath)
     if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
     val ses = jsch.getSession(options.username, options.host, options.port)
-    ses setUserInfo SSHUserInfo(options.password, options.passphrase)
+    ses setUserInfo SSHUserInfo(options.password.password, options.passphrase.password)
     ses.connect(options.timeout.toInt)
     ses
   }

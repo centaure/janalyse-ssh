@@ -35,7 +35,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     (end - begin, result)
   }
 
-  val sshopts = SSHOptions("127.0.0.1", "test", password=Some("testtest"))
+  val sshopts = SSHOptions("127.0.0.1", "test", password="testtest")
   //val sshopts = SSHOptions("192.168.2.238", "test", password=Some("testtest"), port=22022)
   //val sshopts = SSHOptions("www.janalyse.fr")
   

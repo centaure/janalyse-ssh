@@ -48,7 +48,7 @@ object SSHCommand {
 }
 
 class SSHBatch(val cmdList: List[String]) {
-  def !(implicit ssh: SSH) = ssh.shell { _ batch cmdList }
+  def !(implicit ssh: SSH) = ssh.shell { _ execute cmdList }
 }
 
 object SSHBatch {
@@ -103,8 +103,8 @@ object SSH extends SSHAutoClose {
   def once[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
-    password: Option[String] = None,
-    passphrase: Option[String] = None,
+    password: SSHPassword = NoPassword,
+    passphrase: SSHPassword = NoPassword,
     port: Int = 22,
     timeout: Int = 30000)(withssh: (SSH) => T): T = usingSSH(new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))) {
     withssh(_)
@@ -118,11 +118,13 @@ object SSH extends SSHAutoClose {
     }
   }
 
+    
+  
   def shell[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
-    password: Option[String] = None,
-    passphrase: Option[String] = None,
+    password: SSHPassword = NoPassword,
+    passphrase: SSHPassword = NoPassword,
     port: Int = 22,
     timeout: Int = 30000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withsh)
 
@@ -131,11 +133,14 @@ object SSH extends SSHAutoClose {
   }
   def shell[T](someOptions: Option[SSHOptions])(withsh: (SSHShell) => T): Option[T] = someOptions map { shell[T](_)(withsh) }
 
+  
+  
+  
   def ftp[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
-    password: Option[String] = None,
-    passphrase: Option[String] = None,
+    password: SSHPassword = NoPassword,
+    passphrase: SSHPassword = NoPassword,
     port: Int = 22,
     timeout: Int = 30000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withftp)
 
@@ -144,11 +149,15 @@ object SSH extends SSHAutoClose {
   }
   def ftp[T](someOptions: Option[SSHOptions])(withftp: (SSHFtp) => T): Option[T] = someOptions map { ftp[T](_)(withftp) }
 
+  
+  
+  
+  
   def shellAndFtp[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
-    password: Option[String] = None,
-    passphrase: Option[String] = None,
+    password: SSHPassword = NoPassword,
+    passphrase: SSHPassword = NoPassword,
     port: Int = 22,
     timeout: Int = 30000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withshftp)
 
@@ -157,21 +166,27 @@ object SSH extends SSHAutoClose {
   }
   def shellAndFtp[T](someOptions: Option[SSHOptions])(withshftp: (SSHShell, SSHFtp) => T): Option[T] = someOptions map { shellAndFtp[T](_)(withshftp) }
 
+  
+  
+  
+  
+  
   def apply(
     host: String = "localhost",
     username: String = util.Properties.userName,
-    password: Option[String] = None,
-    passphrase: Option[String] = None,
+    password: SSHPassword = NoPassword,
+    passphrase: SSHPassword = NoPassword,
     port: Int = 22,
     timeout: Int = 30000) = new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
 
   def apply(options: SSHOptions) = new SSH(options)
   def apply(someOptions: Option[SSHOptions]): Option[SSH] = someOptions map { new SSH(_) }
-
-  //implicit def toCommand(cmd: String) = new SSHCommand(cmd)
-  //implicit def toBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
-  //implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)
+  
 }
+
+
+
+
 
 class SSH(val options: SSHOptions) extends SSHAutoClose {
   private implicit val ssh = this
@@ -209,7 +224,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   def executeAndTrimSplit(cmd: SSHCommand) = execute(cmd).trim().split("\r?\n")
 
   
-  def execute(cmds: SSHBatch) = shell { _ batch cmds.cmdList }
+  def execute(cmds: SSHBatch) = shell { _ execute cmds.cmdList }
 
   def executeAndTrim(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim }
 
@@ -425,7 +440,7 @@ class SSHShell(implicit ssh: SSH) {
     (ch, toServer, fromServer)
   }
 
-  def batch[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
+  def execute[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
     var builder = bf.apply()
     try {
       for (cmd <- commands) builder += (execute(cmd))

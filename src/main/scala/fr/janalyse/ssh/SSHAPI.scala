@@ -75,7 +75,9 @@ object SSHRemoteFile {
 }
 
 
-case class SSHPassword(password:Option[String])
+case class SSHPassword(password:Option[String]) {
+  override def toString = password getOrElse ""
+}
 
 object NoPassword extends SSHPassword(None)
 

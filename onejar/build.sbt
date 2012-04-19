@@ -4,7 +4,7 @@ seq(assemblySettings: _*)
 
 name := "janalyse-ssh-onejar"
 
-scalaVersion := "2.9.1"
+scalaVersion := "2.9.2"
 
 mainClass in assembly := Some("scala.tools.nsc.MainGenericRunner")
 

@@ -3,7 +3,7 @@ JANALYSE-SSH
 TODO : Add tests with a remote host, in addition to localhost 
 
 ------------------------------------------------------------------
-0.7.4 INPG...
+0.7.4 
  - SSHPassword toString method added (return the password)
  - updated for scala 2.9.2 support
  - scalatest 1.7.2

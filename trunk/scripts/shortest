@@ -2,5 +2,5 @@
 exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
 !#
 
-print(jassh.SSH.shell("localhost", "test", "testtest") { _ execute "uname"})
+println(jassh.SSH.shell("localhost", "test", "testtest") { _.uname})
 

@@ -74,16 +74,15 @@ object SSHRemoteFile {
   implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
 
-
-case class SSHPassword(password:Option[String]) {
+case class SSHPassword(password: Option[String]) {
   override def toString = password getOrElse ""
 }
 
 object NoPassword extends SSHPassword(None)
 
 object SSHPassword {
-  implicit def string2password(pass:String) = new SSHPassword(Some(pass))
-  implicit def stringOpt2password(passopt:Option[String]) = new SSHPassword(passopt) 
+  implicit def string2password(pass: String) = new SSHPassword(Some(pass))
+  implicit def stringOpt2password(passopt: Option[String]) = new SSHPassword(passopt)
 }
 
 case class SSHOptions(
@@ -120,8 +119,6 @@ object SSH extends SSHAutoClose {
     }
   }
 
-    
-  
   def shell[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -135,9 +132,6 @@ object SSH extends SSHAutoClose {
   }
   def shell[T](someOptions: Option[SSHOptions])(withsh: (SSHShell) => T): Option[T] = someOptions map { shell[T](_)(withsh) }
 
-  
-  
-  
   def ftp[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -151,10 +145,6 @@ object SSH extends SSHAutoClose {
   }
   def ftp[T](someOptions: Option[SSHOptions])(withftp: (SSHFtp) => T): Option[T] = someOptions map { ftp[T](_)(withftp) }
 
-  
-  
-  
-  
   def shellAndFtp[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -168,11 +158,6 @@ object SSH extends SSHAutoClose {
   }
   def shellAndFtp[T](someOptions: Option[SSHOptions])(withshftp: (SSHShell, SSHFtp) => T): Option[T] = someOptions map { shellAndFtp[T](_)(withshftp) }
 
-  
-  
-  
-  
-  
   def apply(
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -183,12 +168,8 @@ object SSH extends SSHAutoClose {
 
   def apply(options: SSHOptions) = new SSH(options)
   def apply(someOptions: Option[SSHOptions]): Option[SSH] = someOptions map { new SSH(_) }
-  
+
 }
-
-
-
-
 
 class SSH(val options: SSHOptions) extends SSHAutoClose {
   private implicit val ssh = this
@@ -204,7 +185,6 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     ses
   }
 
-
   //def apply[T](proc: (SSH) => T) = proc(this)  => Removed because it doesn't deal with close...
 
   def shell[T](proc: (SSHShell) => T) = usingSSH(new SSHShell) { proc(_) }
@@ -213,47 +193,42 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   def noerr(data: Option[String]) {}
 
-  
   def run(cmd: String, out: Option[String] => Any, err: Option[String] => Any = noerr) = new SSHExec(cmd, out, err)
 
-  
-  def execute(cmd: SSHCommand) = 
+  def execute(cmd: SSHCommand) =
     //shell { _ execute cmd.cmd }    // Using SSHShell channel  (lower performances)
-    execOnce(cmd.cmd)  // Using SSHExec channel (better performances)
+    execOnce(cmd.cmd) // Using SSHExec channel (better performances)
 
   def executeAndTrim(cmd: SSHCommand) = execute(cmd).trim()
 
   def executeAndTrimSplit(cmd: SSHCommand) = execute(cmd).trim().split("\r?\n")
 
-  
   def execute(cmds: SSHBatch) = shell { _ execute cmds.cmdList }
 
   def executeAndTrim(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim }
 
   def executeAndTrimSplit(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim.split("\r?\n") }
 
-  
   def execOnceAndTrim(scmd: SSHCommand) = execOnce(scmd).trim()
 
   def execOnce(scmd: SSHCommand) = {
     val sb = new StringBuilder()
     def recvStandardOutput(content: Option[String]) {
       for (c <- content) {
-        if (sb.size>0) sb.append("\n")
+        if (sb.size > 0) sb.append("\n")
         sb.append(c)
       }
     }
-    var runner:Option[SSHExec]=None
-    try { 
+    var runner: Option[SSHExec] = None
+    try {
       runner = Some(new SSHExec(scmd.cmd, recvStandardOutput, _ => None))
-      runner foreach {_.waitForEnd}
+      runner foreach { _.waitForEnd }
     } finally {
-      runner foreach {_.close}
+      runner foreach { _.close }
     }
     sb.toString()
   }
-  
-  
+
   def get(remoteFilename: String) = ssh.ftp { _ get remoteFilename }
 
   def getBytes(remoteFilename: String) = ssh.ftp { _ getBytes remoteFilename }
@@ -271,8 +246,45 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   def newSftp = new SSHFtp
 
   def close() { jschsession.disconnect }
-}
 
+  // Now a set of tools
+
+  /**
+   * remote file size in bytes
+   */
+  def fileSize(filename: String):Option[Long] = shell { _.fileSize(filename)}
+
+  /**
+   * remote file md5sum
+   */
+  def md5sum(filename: String):Option[String] = shell { _.md5sum(filename)}
+
+  /**
+   * remote file sha1sum
+   */
+  def sha1sum(filename: String):Option[String] = shell { _.sha1sum(filename)}
+  
+  /**
+   * *nix system name
+   */
+  def uname():String = shell { _.uname()}
+
+  /**
+   *  list files in specified directory
+   */
+  def ls():Iterable[String] = shell {_.ls()}
+  def ls(dirname:String):Iterable[String] = shell {_.ls(dirname)}
+  
+  /**
+   * get current working directory
+   */
+  def pwd():String = shell { _.pwd()}
+
+  /**
+   * get remote host name
+   */
+  def hostname():String = shell { _.hostname()}
+}
 
 
 
@@ -290,7 +302,6 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
   private val stdoutThread = InputStreamThread(channel, stdout, out)
   private val stderrThread = InputStreamThread(channel, stderr, err)
 
-  
   def giveInputLine(line: String) {
     stdin.write(line.getBytes())
     stdin.write("\n".getBytes())
@@ -418,7 +429,7 @@ class SSHFtp(implicit ssh: SSH) {
 }
 
 class SSHShell(implicit ssh: SSH) {
-  val readyMessage = "ready-"+System.currentTimeMillis()
+  val readyMessage = "ready-" + System.currentTimeMillis()
   val defaultPrompt = """-PRMT-: """
   val customPromptGiven = ssh.options.prompt.isDefined
   val prompt = ssh.options.prompt getOrElse defaultPrompt
@@ -456,7 +467,7 @@ class SSHShell(implicit ssh: SSH) {
     channel.disconnect()
   }
 
-  def executeAndContinue(cmd: String, cont: String => Unit): Unit =  cont(execute(cmd))
+  def executeAndContinue(cmd: String, cont: String => Unit): Unit = cont(execute(cmd))
 
   def executeAndTrim(cmd: String): String = execute(cmd).trim()
 
@@ -481,7 +492,7 @@ class SSHShell(implicit ssh: SSH) {
         //toServer.sendCommand("set +o vi") // => Makes everything not working anymore, JSCH problem ?
         toServer.sendCommand("echo '%s'".format(readyMessage)) // ' are important to distinguish between the command and the result
         fromServer.waitReady()
-        fromServer.getResponse()  // ready response
+        fromServer.getResponse() // ready response
       } else {
         fromServer.waitReady()
         fromServer.getResponse() // For the initial prompt
@@ -497,10 +508,10 @@ class SSHShell(implicit ssh: SSH) {
       output.write("\n".getBytes)
       output.flush()
     }
-    def close() {output.close()}
+    def close() { output.close() }
   }
 
-  class ConsumerOutputStream(checkReady:Boolean) extends OutputStream {
+  class ConsumerOutputStream(checkReady: Boolean) extends OutputStream {
 
     private val resultsQueue = new ArrayBlockingQueue[String](100)
 
@@ -517,9 +528,9 @@ class SSHShell(implicit ssh: SSH) {
     private val readyQueue = new ArrayBlockingQueue[String](1)
     def waitReady() {
       //Thread.sleep(500) // TODO : Bad but Mandatory to get some response from JSCH => Find a better way
-      if (ready==false) readyQueue.take()
+      if (ready == false) readyQueue.take()
     }
-    
+
     private val consumerAppender = new StringBuilder(8192)
     private var searchForPromptIndex = 0
     private val promptSize = prompt.size
@@ -528,13 +539,12 @@ class SSHShell(implicit ssh: SSH) {
       if (b != 13) { //CR removed... CR is always added by JSCH !!!!
         consumerAppender.append(b.toChar) // TODO - Add charset support
         if (!ready) { // We want the response and only the response, not the echoed command, thats's why the quote is prefixed
-          if (consumerAppender.endsWith(readyMessage) && !consumerAppender.endsWith("'"+readyMessage)) {
+          if (consumerAppender.endsWith(readyMessage) && !consumerAppender.endsWith("'" + readyMessage)) {
             // wait for at least some results, will tell us that the ssh cnx is ready
-            ready=true
-            readyQueue.put("ready") 
+            ready = true
+            readyQueue.put("ready")
           }
-        } else
-        if (consumerAppender.endsWith(prompt)) {
+        } else if (consumerAppender.endsWith(prompt)) {
           val promptIndex = consumerAppender.size - promptSize
           val firstNlIndex = consumerAppender.indexOf("\n")
           val result = consumerAppender.substring(firstNlIndex + 1, promptIndex)
@@ -549,6 +559,62 @@ class SSHShell(implicit ssh: SSH) {
     }
   }
 
+  // Now a set of useful method for standard *nix systems
+
+  private def genoptcmd(cmd:String):Option[String] = {
+    executeAndTrim("""%s 2>/dev/null""".format(cmd)) match {
+      case "" => None
+      case str => Some(str)
+    }    
+  }
+  
+  /**
+   * remote file size in bytes
+   */
+  def fileSize(filename: String):Option[Long] = 
+    genoptcmd("""ls -ld "%s" """.format(filename)).map(_.split("""\s+""")(4).toLong)  
+
+
+  /**
+   * remote file md5sum
+   */
+  def md5sum(filename: String):Option[String] =
+    genoptcmd("""md5sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
+
+  
+  /**
+   * remote file sha1sum
+   */
+  def sha1sum(filename: String):Option[String] =
+    genoptcmd("""sha1sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
+
+  
+  /**
+   * *nix system name
+   */
+  def uname():String = executeAndTrim("""uname 2>/dev/null""")
+  
+  /**
+   *  list files in specified directory
+   */
+  def ls():Iterable[String] = ls(".")
+  def ls(dirname:String):Iterable[String] = executeAndTrimSplit("""ls --format=single-column "%s" """.format(dirname))
+  
+  /**
+   * get current working directory
+   */
+  def pwd():String = executeAndTrim("""pwd""")
+  
+  /**
+   * change current working directory
+   */
+  def cd() {execute("cd")}
+  def cd(dirname:String) {execute("""cd "%s" """.format(dirname))}
+  
+  /**
+   * get remote host name
+   */
+  def hostname():String = executeAndTrim("""hostname""")
 }
 
 // =============================================================================
@@ -571,6 +637,16 @@ case class SSHUserInfo(password: Option[String] = None, passphrase: Option[Strin
 // =============================================================================
 
 object SSHTools {
+  def md5sum(str:String):String = {
+    md5sum(new ByteArrayInputStream(str.getBytes())) // TODO : Warning manage charsets...
+  }
+  def md5sum(input:InputStream):String = {
+    val bis = new BufferedInputStream(input)
+    val buf = new Array[Byte](1024)
+    val md5 = java.security.MessageDigest.getInstance("MD5")
+    Stream.continually(bis.read(buf)).takeWhile(_ != -1).foreach(md5.update(buf, 0, _))
+    md5.digest().map(0xFF & _).map { "%02x".format(_) }.foldLeft(""){_ + _}
+  }
   def getFile(filename: String): String = {
     new BufferedSource(new FileInputStream(filename)).mkString
   }

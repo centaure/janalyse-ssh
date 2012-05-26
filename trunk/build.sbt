@@ -1,6 +1,6 @@
 name := "janalyse-ssh"
 
-version := "0.7.4"
+version := "0.8.0"
 
 organization :="fr.janalyse"
 
@@ -12,7 +12,7 @@ crossScalaVersions := Seq("2.9.1", "2.9.2")
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "1.7.2" % "test"
 
-libraryDependencies += "com.jcraft" % "jsch" % "0.1.47" % "compile"
+libraryDependencies += "com.jcraft" % "jsch" % "0.1.48" % "compile"
 
 libraryDependencies += "junit" % "junit" % "4.10" % "test"
 

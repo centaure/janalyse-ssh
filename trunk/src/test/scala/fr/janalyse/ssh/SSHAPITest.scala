@@ -192,5 +192,32 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     stat should not equal(None)
     stat.get.size should be >(0)
   }
+  //==========================================================================================================
+  test("Utilities methods") {
+    val testfile="sshapitest.dummy"
+    val testdir="sshapitest-dummydir"
+    SSH.shell("localhost", "test") {sh =>
+      
+      // create a dummy file and dummy directory
+      sh.execute("echo -n 'toto' > %s".format(testfile))
+      sh.execute("mkdir -p %s".format(testdir))
+      val homedir = sh.executeAndTrim("pwd")
+      val rhostname = sh.executeAndTrim("hostname")
+      
+      // now tests the utilities methods
+      import sh._
+      uname              should equal("Linux")
+      hostname           should equal(rhostname)
+      fileSize(testfile) should equal(Some(4))
+      md5sum(testfile)   should equal(Some("f71dbe52628a3f83a77ab494817525c6"))
+      md5sum(testfile)   should equal(Some(SSHTools.md5sum("toto")))
+      sha1sum(testfile)  should equal(Some("0b9c2625dc21ef05f6ad4ddf47c5f203837aa32c"))
+      ls                 should contain(testfile)
+      cd(testdir)
+      pwd                should equal(homedir+"/"+testdir)
+      cd()
+      pwd                should equal(homedir)
+    }
+  }
 }
 

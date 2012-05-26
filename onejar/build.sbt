@@ -21,3 +21,9 @@ libraryDependencies <++=  scalaVersion { sv =>
 libraryDependencies += "fr.janalyse"   %% "janalyse-ssh" % "0.8.0" % "compile"
 
 resolvers += "JAnalyse Repository" at "http://www.janalyse.fr/repository/"
+
+
+// jansi is embedded inside jline !
+excludedJars in assembly <<= (fullClasspath in assembly) map { cp => 
+  cp filter {c=> List("jansi") exists {c.data.getName contains _} }
+}

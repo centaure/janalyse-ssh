@@ -5,7 +5,7 @@ TODO :
 - "ls --format=single-column" may to be replaced by "ls | cat"
 
 ------------------------------------------------------------------
-0.8.0 INPG
+0.8.0
  - now using sbt 0.11.3
  - now using sbt-assembly 0.8.1
  - now using sbteclipse 2.1.0-RC1

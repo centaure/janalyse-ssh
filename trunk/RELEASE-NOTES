@@ -3,6 +3,7 @@ JANALYSE-SSH
 TODO : 
 - Add tests with a remote host, in addition to localhost
 - "ls --format=single-column" may to be replaced by "ls | cat"
+- Check if "date '+%y%m%d_%H%M%S'" is supported on all *nix
 
 ------------------------------------------------------------------
 0.8.0
@@ -10,7 +11,7 @@ TODO :
  - now using sbt-assembly 0.8.1
  - now using sbteclipse 2.1.0-RC1
  - Set of new method to help with commons remote commands :
-   fileSize, md5sum, uname, ls, pwd, cd(*), hostname
+   fileSize, md5sum, uname, ls, pwd, cd(*), hostname, date, findAfterDate
    (*) of course only for shell sessions 
  - JSCH updated to 0.1.48
  - md5sum method added to SSHTools object

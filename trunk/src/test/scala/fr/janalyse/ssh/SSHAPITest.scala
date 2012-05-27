@@ -196,6 +196,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   test("Utilities methods") {
     val testfile="sshapitest.dummy"
     val testdir="sshapitest-dummydir"
+    val now = new java.util.Date()
     SSH.shell("localhost", "test") {sh =>
       
       // create a dummy file and dummy directory
@@ -206,17 +207,18 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       
       // now tests the utilities methods
       import sh._
-      uname              should equal("Linux")
-      hostname           should equal(rhostname)
-      fileSize(testfile) should equal(Some(4))
-      md5sum(testfile)   should equal(Some("f71dbe52628a3f83a77ab494817525c6"))
-      md5sum(testfile)   should equal(Some(SSHTools.md5sum("toto")))
-      sha1sum(testfile)  should equal(Some("0b9c2625dc21ef05f6ad4ddf47c5f203837aa32c"))
-      ls                 should contain(testfile)
+      uname                   should equal("Linux")
+      hostname                should equal(rhostname)
+      fileSize(testfile)      should equal(Some(4))
+      md5sum(testfile)        should equal(Some("f71dbe52628a3f83a77ab494817525c6"))
+      md5sum(testfile)        should equal(Some(SSHTools.md5sum("toto")))
+      sha1sum(testfile)       should equal(Some("0b9c2625dc21ef05f6ad4ddf47c5f203837aa32c"))
+      ls                      should contain(testfile)
       cd(testdir)
-      pwd                should equal(homedir+"/"+testdir)
+      pwd                     should equal(homedir+"/"+testdir)
       cd()
-      pwd                should equal(homedir)
+      pwd                     should equal(homedir)
+      findAfterDate(".", now) should have size(1)
     }
   }
 }

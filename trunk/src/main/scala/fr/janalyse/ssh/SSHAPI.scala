@@ -30,6 +30,8 @@ import java.io.File.{ separator => FS, pathSeparator => PS }
 import scala.collection.mutable.SynchronizedQueue
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.locks.LockSupport
+import java.util.Date
+import java.text.SimpleDateFormat
 
 trait SSHAutoClose {
   // Automatic resource liberation
@@ -267,7 +269,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   /**
    * *nix system name
    */
-  def uname():String = shell { _.uname()}
+  lazy val uname:String = shell { _.uname}
 
   /**
    *  list files in specified directory
@@ -283,7 +285,17 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   /**
    * get remote host name
    */
-  def hostname():String = shell { _.hostname()}
+  lazy val hostname:String = shell { _.hostname}
+  
+  /**
+   * get remote date
+   */
+  def date():Date = shell { _.date()}
+  
+  /**
+   * find file modified after the given date
+   */
+  def findAfterDate(root:String, after:Date):Iterable[String] = shell {_.findAfterDate(root, after)}    
 }
 
 
@@ -592,7 +604,7 @@ class SSHShell(implicit ssh: SSH) {
   /**
    * *nix system name
    */
-  def uname():String = executeAndTrim("""uname 2>/dev/null""")
+  lazy val uname:String = executeAndTrim("""uname 2>/dev/null""")
   
   /**
    *  list files in specified directory
@@ -614,8 +626,33 @@ class SSHShell(implicit ssh: SSH) {
   /**
    * get remote host name
    */
-  def hostname():String = executeAndTrim("""hostname""")
+  lazy val hostname:String = executeAndTrim("""hostname""")
+
+  /**
+   * get remote date
+   */
+  def date():Date = {
+    val sdf = new SimpleDateFormat("yyMMdd_HHmmss")
+    val d = executeAndTrim("date '+%y%m%d_%H%M%S'")
+    sdf.parse(d)
+  }
+  
+  /**
+   * find file modified after the given date
+   */
+  def findAfterDate(root:String, after:Date):Iterable[String] = {    
+    def ellapsedInMn(thatDate:Date):Long =  (date().getTime - thatDate.getTime)/1000/60
+    val findpattern = uname.toLowerCase match {
+	    case "linux"|"aix" => """find %s -follow -type f -mmin '-%d' 2>/dev/null"""   // "%s" => %s to enable file/dir patterns
+	    case "sunos" => throw new RuntimeException("SunOS not supported - find command doesn't support -mmin parameter")
+	    case _       => """find %s -type f -mmin '-%d' 2>/dev/null"""
+    }
+    val findcommand = findpattern.format(root, ellapsedInMn(after))
+    executeAndTrimSplit(findcommand)
+  }
+
 }
+
 
 // =============================================================================
 

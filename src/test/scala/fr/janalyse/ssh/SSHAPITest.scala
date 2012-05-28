@@ -99,7 +99,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
   //==========================================================================================================
   test("SSHShell : Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
-    val howmany=1000
+    val howmany=5000
     SSH.once(sshopts) {
       _.shell { sh =>
         val (dur, _) = howLongFor(() =>

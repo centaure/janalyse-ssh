@@ -95,7 +95,8 @@ case class SSHOptions(
   name: Option[String] = None,
   port: Int = 22,
   prompt: Option[String] = None,
-  timeout: Long = 30000,
+  timeout: Long = 300000,
+  connectTimeout: Long = 30000,
   retryCount: Int = 5,
   retryDelay: Int = 2000,
   sshUserDir: String = SP.userHome + FS + ".ssh",
@@ -109,7 +110,7 @@ object SSH extends SSHAutoClose {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 30000)(withssh: (SSH) => T): T = usingSSH(new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))) {
+    timeout: Int = 300000)(withssh: (SSH) => T): T = usingSSH(new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))) {
     withssh(_)
   }
   def once[T](options: SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
@@ -127,7 +128,7 @@ object SSH extends SSHAutoClose {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 30000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withsh)
+    timeout: Int = 300000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withsh)
 
   def shell[T](options: SSHOptions)(withsh: (SSHShell) => T): T = usingSSH(new SSH(options)) { ssh =>
     ssh.shell { sh => withsh(sh) }
@@ -140,7 +141,7 @@ object SSH extends SSHAutoClose {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 30000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withftp)
+    timeout: Int = 300000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withftp)
 
   def ftp[T](options: SSHOptions)(withftp: (SSHFtp) => T): T = usingSSH(new SSH(options)) { ssh =>
     ssh.ftp { ftp => withftp(ftp) }
@@ -153,7 +154,7 @@ object SSH extends SSHAutoClose {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 30000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withshftp)
+    timeout: Int = 300000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withshftp)
 
   def shellAndFtp[T](options: SSHOptions)(withshftp: (SSHShell, SSHFtp) => T): T = usingSSH(new SSH(options)) { ssh =>
     ssh.shell { sh => ssh.ftp { ftp => withshftp(sh, ftp) } }
@@ -166,7 +167,7 @@ object SSH extends SSHAutoClose {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 30000) = new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
+    timeout: Int = 300000) = new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
 
   def apply(options: SSHOptions) = new SSH(options)
   def apply(someOptions: Option[SSHOptions]): Option[SSH] = someOptions map { new SSH(_) }
@@ -183,7 +184,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
     val ses = jsch.getSession(options.username, options.host, options.port)
     ses setUserInfo SSHUserInfo(options.password.password, options.passphrase.password)
-    ses.connect(options.timeout.toInt)
+    ses.setTimeout(options.timeout.toInt)  // Socket timeout
+    ses.connect(options.connectTimeout.toInt)
     ses
   }
 
@@ -308,7 +310,7 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
     val stdout = ch.getInputStream()
     val stderr = ch.getErrStream()
     val stdin = ch.getOutputStream()
-    ch.connect(ssh.options.timeout.toInt)
+    ch.connect(ssh.options.connectTimeout.toInt)
     (ch, stdout, stderr, stdin)
   }
   private val stdoutThread = InputStreamThread(channel, stdout, out)
@@ -388,7 +390,7 @@ class SSHFtp(implicit ssh: SSH) {
   private val channel: ChannelSftp = {
     //jschftpchannel.connect(link.connectTimeout)
     val ch = ssh.jschsession.openChannel("sftp").asInstanceOf[ChannelSftp]
-    ch.connect(ssh.options.timeout.toInt)
+    ch.connect(ssh.options.connectTimeout.toInt)
     ch
   }
 
@@ -460,7 +462,7 @@ class SSHShell(implicit ssh: SSH) {
     val fromServer = new ConsumerOutputStream(customPromptGiven) // if the customPrompt is given, we consider we're ready to send/receive commands
     ch.setOutputStream(fromServer)
 
-    ch.connect(ssh.options.timeout.toInt)
+    ch.connect(ssh.options.connectTimeout.toInt)
 
     (ch, toServer, fromServer)
   }

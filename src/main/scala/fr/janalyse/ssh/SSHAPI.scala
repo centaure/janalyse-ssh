@@ -183,8 +183,8 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
     if (idrsa.exists) jsch.addIdentity(idrsa.getAbsolutePath)
     if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
     val ses = jsch.getSession(options.username, options.host, options.port)
-    ses setUserInfo SSHUserInfo(options.password.password, options.passphrase.password)
     ses.setTimeout(options.timeout.toInt)  // Socket timeout
+    ses setUserInfo SSHUserInfo(options.password.password, options.passphrase.password)
     ses.connect(options.connectTimeout.toInt)
     ses
   }

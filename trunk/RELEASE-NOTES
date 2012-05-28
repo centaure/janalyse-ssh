@@ -1,14 +1,15 @@
 JANALYSE-SSH
 
 TODO : 
+  => cleanup & scaladoc !!!
   => Add tests with a remote host, in addition to localhost
   => "ls --format=single-column" may to be replaced by "ls | cat"
   => Check if "date '+%y%m%d_%H%M%S'" is supported on all *nix
 
 CAVEATS : 
   => ssh shell operations must be executed with the same thread, 
-     do not span a shell session across several threads
-     So be carefull when using REPL, as each "evaluation" is done with a new thread ! 
+     do not span a persisted shell session across several threads
+     So be careful when using REPL, as each "evaluation" is done with a new thread ! 
 
 ------------------------------------------------------------------
 0.8.0

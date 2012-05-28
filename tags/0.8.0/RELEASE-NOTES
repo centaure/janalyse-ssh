@@ -1,0 +1,79 @@
+JANALYSE-SSH
+
+TODO : 
+  => Add tests with a remote host, in addition to localhost
+  => "ls --format=single-column" may to be replaced by "ls | cat"
+  => Check if "date '+%y%m%d_%H%M%S'" is supported on all *nix
+
+CAVEATS : 
+  => ssh shell operations must be executed with the same thread, 
+     do not span a shell session across several threads
+     So be carefull when using REPL, as each "evaluation" is done with a new thread ! 
+
+------------------------------------------------------------------
+0.8.0
+ - now using sbt 0.11.3
+ - now using sbt-assembly 0.8.1
+ - now using sbteclipse 2.1.0-RC1
+ - Set of new method to help with commons remote commands :
+   fileSize, md5sum, sha1sum, uname, ls, pwd, cd(*), hostname, date, findAfterDate
+   (*) of course only for shell sessions 
+ - JSCH updated to 0.1.48
+ - md5sum method added to SSHTools object
+ - manage well connect timeout (default = 30s) and general socket timeout (default = 5mn)
+
+------------------------------------------------------------------
+0.7.4 
+ - SSHPassword toString method added (return the password)
+ - updated for scala 2.9.2 support
+ - scalatest 1.7.2
+ - no more support for scala 2.8.1 & 2.8.2
+
+
+------------------------------------------------------------------
+0.7.3
+ - JCSH updated to release 0.1.47
+ - SSHOptions now contains an extra field "name" which allow user to friendly identify a remote ssh system
+ - SSHOptions password type is now of SSHPassword type instead of String.
+   Implicit conversions is provided from String, Option[String]
+ - SSHShell batch method renamed to execute
+
+
+------------------------------------------------------------------
+0.7.2
+ - added a package object jassh to define shortcuts to fr.janalyse.ssh.SSH class and object
+ - SSHOptions, host parameter is now in first position !
+
+
+------------------------------------------------------------------
+0.7.1
+ - fix big issue with SSHShell results separator process. => not seen using localhost tests => Must add remote tests !!
+
+
+------------------------------------------------------------------
+0.7.0
+ - Added new method to SSH : newShell & newSftp for user to manage themselves shell and sftp session
+ - Some internal changes to SSHExec class, in order to try to remove actor dependency. Mixing actors systems looks problematic
+ - SSHShell new implementation, no more actors used, better performances and behavior, ... (throughput : 504 cmd/s using persistency)
+ - SSHExec last result line is no longer lost
+ - SSHOptions : new parameter : "prompt" to enable custom shell or console command to be use.
+                prompt provide to SSHShell the way to separate command results
+ - SSHOptions : connectionTimeout renamed into timeout
+ - Various cleanup and enhancements
+ - Tests : compare performances persistent SSHShell versus SSHExec  commands throughputs
+ - SSH : Add an execute immediate method which rely on SSHExec, not SSHShell ! (throughput : 62cmd/s) 
+         execOnce & execOnceAndTrim
+ - SSHExec : Do not rely on DaemonActor/Actor anymore
+ - SSHShell : Removed init Thread.sleep => Better performances (throughput : 37 cmd/s instead 1cmd/s)
+ - SSH.connect becomes SSH.once
+ - Removing apply in SSH class as it may encourage bad usage, and close not called
+
+ 
+------------------------------------------------------------------
+0.6.0
+ - update jsch to 0.1.46
+ - update sbteclipse plugin to 2.0.0
+ - update sbtassembly plugin to 0.7.3
+ - background ssh execution API changes (run method)
+ - temporary hack to remove CPU overhead within run method
+

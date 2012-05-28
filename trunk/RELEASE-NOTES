@@ -16,12 +16,11 @@ CAVEATS :
  - now using sbt-assembly 0.8.1
  - now using sbteclipse 2.1.0-RC1
  - Set of new method to help with commons remote commands :
-   fileSize, md5sum, uname, ls, pwd, cd(*), hostname, date, findAfterDate
+   fileSize, md5sum, sha1sum, uname, ls, pwd, cd(*), hostname, date, findAfterDate
    (*) of course only for shell sessions 
  - JSCH updated to 0.1.48
  - md5sum method added to SSHTools object
  - manage well connect timeout (default = 30s) and general socket timeout (default = 5mn)
-   => When using REPL, this general socket timeout must be raised to a higher value
 
 ------------------------------------------------------------------
 0.7.4 

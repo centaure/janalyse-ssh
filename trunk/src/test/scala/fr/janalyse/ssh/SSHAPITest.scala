@@ -24,6 +24,7 @@ import scala.io.Source
 import actors.Actor._
 import scala.util.Properties
 import java.io.File
+import java.io.IOException
 
 @RunWith(classOf[JUnitRunner])
 class SSHAPITest extends FunSuite with ShouldMatchers {
@@ -191,6 +192,16 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     
     stat should not equal(None)
     stat.get.size should be >(0)
+  }
+  //==========================================================================================================
+  ignore("timeout tests") { // TODO : not working, make timeout possible with too long running remote command; (^C is already possible)!!
+    val opts = SSHOptions(host="localhost", username="test", timeout=5000, connectTimeout=2000)
+    SSH.shell(opts) {sh =>
+      sh.executeAndTrim("sleep 4; echo 'ok'") should equal("ok")
+      intercept[IOException] {
+        sh.executeAndTrim("sleep 10; echo 'ok'") should equal("ok")
+      }
+    }
   }
   //==========================================================================================================
   test("Utilities methods") {

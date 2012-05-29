@@ -5,10 +5,11 @@ TODO :
   => Add tests with a remote host, in addition to localhost
   => "ls --format=single-column" may to be replaced by "ls | cat"
   => Check if "date '+%y%m%d_%H%M%S'" is supported on all *nix
+  => Shell.date -> take into account remote system time zone
 
 CAVEATS : 
-  => ssh shell operations must be executed with the same thread, 
-     do not span a persisted shell session across several threads
+  => ssh persisted shell session operations must be executed within the same thread, 
+     do not span a persisted shell session across several threads => it may generate exception 
      So be careful when using REPL, as each "evaluation" is done with a new thread ! 
 
 ------------------------------------------------------------------

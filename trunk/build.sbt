@@ -10,7 +10,7 @@ scalaVersion := "2.9.2"
 
 crossScalaVersions := Seq("2.9.1", "2.9.2")
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "1.7.2" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "1.8" % "test"
 
 libraryDependencies += "com.jcraft" % "jsch" % "0.1.48" % "compile"
 

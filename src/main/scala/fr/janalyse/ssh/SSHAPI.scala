@@ -41,21 +41,38 @@ trait SSHAutoClose {
   }
 }
 
+/**
+  * SSHCommand class models ssh command
+  * @author David Crosson
+  */
 class SSHCommand(val cmd: String) {
   def !(implicit ssh: SSH) = ssh.shell { _ execute cmd }
 }
 
+/**
+  * SSHCommand object implicit conversions container  
+  * @author David Crosson
+  */
 object SSHCommand {
   implicit def toCommand(cmd: String) = new SSHCommand(cmd)
 }
 
+/**
+  * SSHBatch class models ssh batch (in fact a list of commands)  
+  * @author David Crosson
+  */
 class SSHBatch(val cmdList: List[String]) {
   def !(implicit ssh: SSH) = ssh.shell { _ execute cmdList }
 }
 
+/**
+  * SSHBatch object implicit conversions container  
+  * @author David Crosson
+  */
 object SSHBatch {
   implicit def toBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
 }
+
 
 class SSHRemoteFile(val remoteFilename: String) {
   def get(implicit ssh: SSH) = {
@@ -76,6 +93,7 @@ object SSHRemoteFile {
   implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
 
+
 case class SSHPassword(password: Option[String]) {
   override def toString = password getOrElse ""
 }
@@ -87,6 +105,10 @@ object SSHPassword {
   implicit def stringOpt2password(passopt: Option[String]) = new SSHPassword(passopt)
 }
 
+/**
+  * SSHOptions stores all ssh parameters
+  * @author David Crosson
+  */
 case class SSHOptions(
   host: String = "localhost",
   username: String = util.Properties.userName,
@@ -102,8 +124,24 @@ case class SSHOptions(
   sshUserDir: String = SP.userHome + FS + ".ssh",
   charset: String = "ISO-8859-15")
 
+  
+/**
+  * SSH object factories
+  * @author David Crosson
+  */
+
 object SSH extends SSHAutoClose {
 
+  /**
+    * Executes the given code then closes the new ssh associated session. 
+    * @param host
+    * @param username
+    * @param password
+    * @param passphrase
+    * @param port
+    * @param timeout
+    * @return Series statistics
+    */
   def once[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -113,15 +151,35 @@ object SSH extends SSHAutoClose {
     timeout: Int = 300000)(withssh: (SSH) => T): T = usingSSH(new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))) {
     withssh(_)
   }
+  /**
+    * Executes the given code then closes the new ssh associated session. 
+    * @param options ssh options
+    * @return Series statistics
+    */
   def once[T](options: SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
     withssh(_)
   }
+  /**
+    * Executes the given code then closes the new ssh associated session. 
+    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
+    * @return Series statistics
+    */
   def once[T](someOptions: Option[SSHOptions])(withssh: (SSH) => Option[T]) = someOptions map { options =>
     usingSSH(new SSH(options)) {
       withssh(_)
     }
   }
 
+  /**
+    * Executes the given code then closes the new ssh shell channel associated session. 
+    * @param host
+    * @param username
+    * @param password
+    * @param passphrase
+    * @param port
+    * @param timeout
+    * @return Series statistics
+    */
   def shell[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -135,6 +193,16 @@ object SSH extends SSHAutoClose {
   }
   def shell[T](someOptions: Option[SSHOptions])(withsh: (SSHShell) => T): Option[T] = someOptions map { shell[T](_)(withsh) }
 
+  /**
+    * Executes the given code then closes the new ssh ftp channel associated session. 
+    * @param host
+    * @param username
+    * @param password
+    * @param passphrase
+    * @param port
+    * @param timeout
+    * @return Series statistics
+    */
   def ftp[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -148,6 +216,16 @@ object SSH extends SSHAutoClose {
   }
   def ftp[T](someOptions: Option[SSHOptions])(withftp: (SSHFtp) => T): Option[T] = someOptions map { ftp[T](_)(withftp) }
 
+  /**
+    * Executes the given code then closes the new ssh shell and ftp channels associated sessions. 
+    * @param host
+    * @param username
+    * @param password
+    * @param passphrase
+    * @param port
+    * @param timeout
+    * @return what's the given code returns
+    */
   def shellAndFtp[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -161,6 +239,18 @@ object SSH extends SSHAutoClose {
   }
   def shellAndFtp[T](someOptions: Option[SSHOptions])(withshftp: (SSHShell, SSHFtp) => T): Option[T] = someOptions map { shellAndFtp[T](_)(withshftp) }
 
+  
+  
+  /**
+    * Creates a new SSH session, it is up to the user to manage close 
+    * @param host
+    * @param username
+    * @param password
+    * @param passphrase
+    * @param port
+    * @param timeout
+    * @return what's the given code returns
+    */
   def apply(
     host: String = "localhost",
     username: String = util.Properties.userName,

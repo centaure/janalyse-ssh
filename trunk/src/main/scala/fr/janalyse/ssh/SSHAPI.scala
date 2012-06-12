@@ -46,15 +46,11 @@ trait SSHAutoClose {
   * @author David Crosson
   */
 class SSHCommand(val cmd: String) {
-  def !(implicit ssh: SSH) = ssh.shell { _ execute cmd }
+  def §§(implicit ssh: SSH) = ssh.shell { _ execute cmd }
 }
 
-/**
-  * SSHCommand object implicit conversions container  
-  * @author David Crosson
-  */
 object SSHCommand {
-  implicit def toCommand(cmd: String) = new SSHCommand(cmd)
+  implicit def stringToCommand(cmd: String) = new SSHCommand(cmd)
 }
 
 /**
@@ -62,7 +58,7 @@ object SSHCommand {
   * @author David Crosson
   */
 class SSHBatch(val cmdList: List[String]) {
-  def !(implicit ssh: SSH) = ssh.shell { _ execute cmdList }
+  def §§(implicit ssh: SSH) = ssh.shell { _ execute cmdList }
 }
 
 /**
@@ -70,10 +66,14 @@ class SSHBatch(val cmdList: List[String]) {
   * @author David Crosson
   */
 object SSHBatch {
-  implicit def toBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
+  implicit def stringListToBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
 }
 
 
+/**
+  * SSHRemoteFile class models a file on the remote system  
+  * @author David Crosson
+  */
 class SSHRemoteFile(val remoteFilename: String) {
   def get(implicit ssh: SSH) = {
     ssh.ftp { _ get remoteFilename }
@@ -90,7 +90,7 @@ class SSHRemoteFile(val remoteFilename: String) {
 }
 
 object SSHRemoteFile {
-  implicit def toRemoteFile(filename: String) = new SSHRemoteFile(filename)
+  implicit def stringToRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
 
 
@@ -291,7 +291,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   def execute(cmd: SSHCommand) =
     //shell { _ execute cmd.cmd }    // Using SSHShell channel  (lower performances)
-    execOnce(cmd.cmd) // Using SSHExec channel (better performances)
+    execOnce(cmd) // Using SSHExec channel (better performances)
 
   def executeAndTrim(cmd: SSHCommand) = execute(cmd).trim()
 
@@ -387,7 +387,32 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   /**
    * find file modified after the given date
    */
-  def findAfterDate(root:String, after:Date):Iterable[String] = shell {_.findAfterDate(root, after)}    
+  def findAfterDate(root:String, after:Date):Iterable[String] = shell {_.findAfterDate(root, after)}
+  
+  /**
+   * generic the specified test (man test)
+   */
+  def test(filename:String):Boolean = shell {_.test(filename)}
+  
+  /**
+   * does specified filename exist ?
+   */
+  def exists(filename:String):Boolean = shell {_.exists(filename)}
+  
+  /**
+   * is file name a directory
+   */
+  def isDirectory(filename:String):Boolean = shell {_.isDirectory(filename)}
+  
+  /**
+   * is file name a regular file
+   */
+  def isFile(filename:String):Boolean = shell {_.isFile(filename)}
+  
+  /**
+   * is filename executable ?
+   */
+  def isExecutable(filename:String):Boolean = shell {_.isExecutable(filename)}
 }
 
 
@@ -743,6 +768,42 @@ class SSHShell(implicit ssh: SSH) {
     executeAndTrimSplit(findcommand)
   }
 
+  
+  /**
+   * generic test usage
+   */
+  private def testFile(testopt:String, filename:String):Boolean = {
+    val cmd = """test %s "%s" ; echo $?""".format(testopt, filename)
+    executeAndTrim(cmd).toInt == 0
+  }
+
+  /**
+   * generic the specified test (man test)
+   */
+  def test(that:String):Boolean = {
+    val cmd = """test %s ; echo $?""".format(that)
+    executeAndTrim(cmd).toInt == 0
+  }
+  
+  /**
+   * does specified filename exist ?
+   */
+  def exists(filename:String):Boolean = testFile("-e", filename)
+
+  /**
+   * is file name a directory
+   */
+  def isDirectory(filename:String):Boolean = testFile("-d", filename)
+  
+  /**
+   * is file name a regular file
+   */
+  def isFile(filename:String):Boolean = testFile("-f", filename)
+  
+  /**
+   * is filename executable ?
+   */
+  def isExecutable(filename:String):Boolean = testFile("-x", filename)
 }
 
 

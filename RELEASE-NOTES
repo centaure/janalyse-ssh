@@ -16,6 +16,9 @@ CAVEATS :
 0.8.1 INPG
  - now using sbt-assembly 0.8.1
  - now using scalatest 0.8
+ - SSHCommand, SSHBatch methods ! renamed to §§
+ - new helper methods :
+   test, exists, isFile, isDirectory, isExecutable 
 
 ------------------------------------------------------------------
 0.8.0

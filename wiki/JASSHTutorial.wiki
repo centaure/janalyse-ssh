@@ -4,15 +4,46 @@
 
 JASSH Scala SSH API tutorial. All examples described in the example can be directly tested using scala console. Several ways are possible to start the console :
  * using sbt :
-   * 
+   * svn checkout http://janalyse-ssh.googlecode.com/svn/trunk/ jassh
+   * cd jassh
+   * sbt console
  * download "jassh.jar" file, and start the console as follow :
+   * wget http://code.google.com/p/janalyse-ssh/downloads/detail?name=jassh.jar
+   * java -jar target/jassh.jar -usejavacp
 
 = First example =
 
+Assuming that a user "test" exists with "testtest" as password; if no password is given then jassh will try to use public key authentication.
+{{{
+scala> import jassh._
+import jassh._
+
+scala> val ssh=SSH("localhost", "test", "testtest")
+ssh: fr.janalyse.ssh.SSH = fr.janalyse.ssh.SSH@6798e5f7
+
+scala> ssh.execute("ls")
+res0: java.lang.String = 
+HelloWorld.txt
+file.tst
+sshapitest-dummydir
+sshapitest.dummy
+sshapittest.dummy
+
+scala> val uname  = ssh.execute("uname -a")
+uname: java.lang.String = Linux lanfeust 3.2.1-gentoo-r2 #1 SMP Sat Jan 28 12:15:33 CET 2012 x86_64 AMD Phenom(tm) II X6 1090T Processor AuthenticAMD GNU/Linux
+
+scala> ssh.put("Hello World\nToo good", "hello.txt")
+
+scala> for(msg <- ssh.get("hello.txt") ) println(msg)
+Hello World
+Too good
+
+}}}
+
 = Configuration =
 
-= remote execution =
+= Remote execution =
 
-= remote background execution =
+= Remote background execution =
 
-= remote transfert =
+= Remote transfert =

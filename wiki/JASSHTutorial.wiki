@@ -2,7 +2,7 @@
 
 = Introduction =
 
-JASSH Scala SSH API tutorial. All examples described in the example can be directly tested using scala console. Several ways are possible to start the console :
+JASSH Scala SSH API tutorial. All examples described in this document can be directly tested using scala console. Several simplified ways are possible to start the console :
  * using sbt :
    * svn checkout http://janalyse-ssh.googlecode.com/svn/trunk/ jassh
    * cd jassh
@@ -11,7 +11,24 @@ JASSH Scala SSH API tutorial. All examples described in the example can be direc
    * wget http://code.google.com/p/janalyse-ssh/downloads/detail?name=jassh.jar
    * java -jar target/jassh.jar -usejavacp
 
-= First example =
+Besides that, you can also create your own scala scripts very simply, just create a dummy.scala script file as follow and make it executable (we assume that jassh.jar is in the current directory):
+{{{
+$ cat >dummy.scala
+#!/bin/sh
+exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
+!#
+jassh.SSH.shell("localhost", "test", "testtest") { sh =>
+  print(sh.execute("""echo "Hello World from `hostname`" """))
+}
+**ctrl-d**
+$ chmod a+x dummy.scala
+$ ./dummy.scala
+Hello World from lanfeust
+$ 
+}}}
+
+
+= First example : Console usage =
 
 Assuming that a user "test" exists with "testtest" as password; if no password is given then jassh will try to use public key authentication.
 {{{
@@ -38,6 +55,11 @@ scala> for(msg <- ssh.get("hello.txt") ) println(msg)
 Hello World
 Too good
 
+}}}
+
+= Second example : Script usage =
+
+{{{
 }}}
 
 = Configuration =

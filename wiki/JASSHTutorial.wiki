@@ -69,3 +69,21 @@ Too good
 = Remote background execution =
 
 = Remote transfert =
+
+= Helper methods =
+I've made available a large set of methods to simplify common usages, all available directly on both SSH and SSHShell classes :
+ * fileSize : get remote file size in bytes
+ * md5sum : returns remote file md5 sum
+ * sha1sum : returns remote file sha1 sum
+ * uname : get remote system uname
+ * ls : returns an iterable of filenames
+ * cd : Modify the remote current working directory (For SSHShell, not meaningfull for SSH)
+ * pwd : Get the remote current working directory
+ * hostname : remote hostname
+ * date : remote current date
+ * findAfterDate : returns an Iterable of filenames modified after the a specified date
+ * test : execute a test shell expression, returns true or false
+ * exists : does the remote filename exists ?
+ * isDirectory : is the remote file a directory ?
+ * isFile : is the remote file a regular file ?
+ * isExecutable : is the remote file executable ?

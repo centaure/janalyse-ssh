@@ -1,0 +1,18 @@
+#summary Fast track to the features of JASSH
+
+= Introduction =
+
+JASSH Scala SSH API tutorial. All examples described in the example can be directly tested using scala console. Several ways are possible to start the console :
+ * using sbt :
+   * 
+ * download "jassh.jar" file, and start the console as follow :
+
+= First example =
+
+= Configuration =
+
+= remote execution =
+
+= remote background execution =
+
+= remote transfert =

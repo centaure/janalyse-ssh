@@ -757,8 +757,10 @@ class SSHShell(implicit ssh: SSH) {
   /**
    * find file modified after the given date
    */
-  def findAfterDate(root:String, after:Date):Iterable[String] = {    
-    def ellapsedInMn(thatDate:Date):Long =  (date().getTime - thatDate.getTime)/1000/60
+  def findAfterDate(root:String, after:Date):Iterable[String] = {
+    // TODO : to debug...
+    //def ellapsedInMn(thatDate:Date):Long =  (date().getTime - thatDate.getTime)/1000/60
+    def ellapsedInMn(thatDate:Date):Long =  (new Date().getTime - thatDate.getTime)/1000/60
     val findpattern = uname.toLowerCase match {
 	    case "linux"|"aix" => """find %s -follow -type f -mmin '-%d' 2>/dev/null"""   // "%s" => %s to enable file/dir patterns
 	    case "sunos" => throw new RuntimeException("SunOS not supported - find command doesn't support -mmin parameter")

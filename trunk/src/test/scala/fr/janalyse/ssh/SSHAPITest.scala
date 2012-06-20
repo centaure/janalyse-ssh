@@ -229,13 +229,13 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       pwd                     should equal(homedir+"/"+testdir)
       cd()
       pwd                     should equal(homedir)
-      findAfterDate(".", now) should have size(1)
       sh.test("1 == 1")       should equal(true)
       sh.test("1 == 2")       should equal(false)
       isFile(testfile)        should equal(true)
       isDirectory(testfile)   should equal(false)
       exists(testfile)        should equal(true)
       isExecutable(testfile)  should equal(false)
+      findAfterDate(".", now) should have size(1)
     }
   }
 }

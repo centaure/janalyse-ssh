@@ -424,7 +424,7 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   /**
    * Remote file size in bytes
-   * @param filename
+   * @param filename file name
    * @return optional file size, or None if filename was not found
    */
   def fileSize(filename: String):Option[Long] = shell { _.fileSize(filename)}

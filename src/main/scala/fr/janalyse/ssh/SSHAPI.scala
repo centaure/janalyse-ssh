@@ -746,11 +746,11 @@ class SSHShell(implicit ssh: SSH) {
   lazy val hostname:String = executeAndTrim("""hostname""")
 
   /**
-   * get remote date
+   * get remote date, as a java class Date instance
    */
   def date():Date = {
-    val sdf = new SimpleDateFormat("yyMMdd_HHmmss")
-    val d = executeAndTrim("date '+%y%m%d_%H%M%S'")
+    val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z")
+    val d = executeAndTrim("date '+%Y-%m-%d %H:%M:%S %z'")
     sdf.parse(d)
   }
   
@@ -758,9 +758,8 @@ class SSHShell(implicit ssh: SSH) {
    * find file modified after the given date
    */
   def findAfterDate(root:String, after:Date):Iterable[String] = {
-    // TODO : to debug...
-    //def ellapsedInMn(thatDate:Date):Long =  (date().getTime - thatDate.getTime)/1000/60
-    def ellapsedInMn(thatDate:Date):Long =  (new Date().getTime - thatDate.getTime)/1000/60
+    def ellapsedInMn(thatDate:Date):Long =  (date().getTime - thatDate.getTime)/1000/60
+    //deprecated : // def ellapsedInMn(thatDate:Date):Long =  (new Date().getTime - thatDate.getTime)/1000/60
     val findpattern = uname.toLowerCase match {
 	    case "linux"|"aix" => """find %s -follow -type f -mmin '-%d' 2>/dev/null"""   // "%s" => %s to enable file/dir patterns
 	    case "sunos" => throw new RuntimeException("SunOS not supported - find command doesn't support -mmin parameter")

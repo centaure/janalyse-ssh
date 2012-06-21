@@ -160,16 +160,25 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
   
-  test("Simultaenous SSH operations") {
+  //==========================================================================================================
+  test("Simultaenous SSH operations") {    
     val started = System.currentTimeMillis()
     val cnxinfos = List(sshopts, sshopts, sshopts, sshopts, sshopts)
     val sshs   = cnxinfos.par map {SSH(_)}
+    
+    // Configuring parallelism
+    // Scala 2.9
+    collection.parallel.ForkJoinTasks.defaultForkJoinPool.setParallelism(6)
+    // Scala 2.10
+    //sshs.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(6))
+    
     val unames = sshs map {_ execute "date; sleep 5"}
     info(unames.mkString("----"))
     
     (System.currentTimeMillis() - started) should be < (8000L)  //(and not 5s * 5 = 25s)
   }
 
+  //==========================================================================================================
   test("Simplified persistent ssh shell usage") {
     SSH.shell("localhost", "test") { sh =>
       sh.execute("ls")
@@ -177,6 +186,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
 
+  //==========================================================================================================
   test("Simplified persistent ssh shell and ftp usage") {
     SSH.shellAndFtp(sshopts) { (sh, ftp) =>
       sh.execute("ls")
@@ -186,6 +196,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
   
+  //==========================================================================================================
   test("simplified usage with sshOptions as Option") {
     val cnxinfo = Some(sshopts)
     val stat = SSH.ftp(cnxinfo) {_.get("/proc/stat")}
@@ -207,7 +218,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   test("helper methods") {
     val testfile="sshapitest.dummy"
     val testdir="sshapitest-dummydir"
-    val now = new java.util.Date()
+    def now = new java.util.Date()
+    val started = now
     SSH.shell("localhost", "test") {sh =>
       
       // create a dummy file and dummy directory
@@ -235,7 +247,9 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       isDirectory(testfile)   should equal(false)
       exists(testfile)        should equal(true)
       isExecutable(testfile)  should equal(false)
-      findAfterDate(".", now) should have size(1)
+      findAfterDate(".", started) should have size(1)
+      val reftime = now.getTime
+      date().getTime          should (be>(reftime-1000) and be<(reftime+1000))
     }
   }
 }

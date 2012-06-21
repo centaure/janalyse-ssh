@@ -4,8 +4,7 @@ TODO :
   => cleanup & scaladoc !!!
   => Add tests with a remote host, in addition to localhost
   => "ls --format=single-column" may to be replaced by "ls | cat"
-  => Check if "date '+%y%m%d_%H%M%S'" is supported on all *nix
-  => Shell.date -> take into account remote system time zone
+  => Check if "date '+%Y-%m-%d %H:%M:%S %z'" is supported on all *nix
 
 CAVEATS : 
   => ssh persisted shell session operations must be executed within the same thread, 
@@ -19,6 +18,10 @@ CAVEATS :
  - SSHCommand, SSHBatch methods ! renamed to §§
  - new helper methods :
    test, exists, isFile, isDirectory, isExecutable 
+ - findAfterDate & date helper fix !!
+   Shell.date -> remote system time zone is now taken into account
+ - test cases fix :
+   Forcing parallelism to 6 ! for test case "Simultaenous SSH operations"
 
 ------------------------------------------------------------------
 0.8.0

@@ -49,6 +49,10 @@ class SSHCommand(val cmd: String) {
   def §§(implicit ssh: SSH) = ssh.shell { _ execute cmd }
 }
 
+/**
+  * SSHCommand object implicit conversions container  
+  * @author David Crosson
+  */
 object SSHCommand {
   implicit def stringToCommand(cmd: String) = new SSHCommand(cmd)
 }
@@ -89,17 +93,33 @@ class SSHRemoteFile(val remoteFilename: String) {
   }
 }
 
+/**
+  * SSHRemoteFile object implicit conversions container  
+  * @author David Crosson
+  */
 object SSHRemoteFile {
   implicit def stringToRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
 
 
+/**
+  * SSHPassword class models a password, that may be given or not  
+  * @author David Crosson
+  */
 case class SSHPassword(password: Option[String]) {
   override def toString = password getOrElse ""
 }
 
+/**
+  * NoPassword object to be used when no password is given  
+  * @author David Crosson
+  */
 object NoPassword extends SSHPassword(None)
 
+/**
+  * SSHPassword object implicit conversions container  
+  * @author David Crosson
+  */
 object SSHPassword {
   implicit def string2password(pass: String) = new SSHPassword(Some(pass))
   implicit def stringOpt2password(passopt: Option[String]) = new SSHPassword(passopt)
@@ -129,18 +149,18 @@ case class SSHOptions(
   * SSH object factories
   * @author David Crosson
   */
-
 object SSH extends SSHAutoClose {
 
   /**
     * Executes the given code then closes the new ssh associated session. 
-    * @param host
-    * @param username
-    * @param password
-    * @param passphrase
-    * @param port
-    * @param timeout
-    * @return Series statistics
+    * @param host ip address or hostname
+    * @param username user name
+    * @param password user password (if ommitted, will try public key authentication)
+    * @param passphrase keys passphrase (if required)
+    * @param port remote ssh port
+    * @param timeout timeout
+    * @param withssh code bloc to execute
+    * @return "withssh" returns type
     */
   def once[T](
     host: String = "localhost",
@@ -154,7 +174,8 @@ object SSH extends SSHAutoClose {
   /**
     * Executes the given code then closes the new ssh associated session. 
     * @param options ssh options
-    * @return Series statistics
+    * @param withssh code bloc to execute
+    * @return "withssh" returns type
     */
   def once[T](options: SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
     withssh(_)
@@ -162,7 +183,8 @@ object SSH extends SSHAutoClose {
   /**
     * Executes the given code then closes the new ssh associated session. 
     * @param someOptions Some ssh options or None, if None is given, nothing will be done 
-    * @return Series statistics
+    * @param withssh code bloc to execute
+    * @return "withssh" returns type
     */
   def once[T](someOptions: Option[SSHOptions])(withssh: (SSH) => Option[T]) = someOptions map { options =>
     usingSSH(new SSH(options)) {
@@ -172,13 +194,14 @@ object SSH extends SSHAutoClose {
 
   /**
     * Executes the given code then closes the new ssh shell channel associated session. 
-    * @param host
-    * @param username
-    * @param password
-    * @param passphrase
-    * @param port
-    * @param timeout
-    * @return Series statistics
+    * @param host ip address or hostname
+    * @param username user name
+    * @param password user password (if ommitted, will try public key authentication)
+    * @param passphrase keys passphrase (if required)
+    * @param port remote ssh port
+    * @param timeout timeout
+    * @param withsh code bloc to execute
+    * @return "withsh" returns type
     */
   def shell[T](
     host: String = "localhost",
@@ -188,20 +211,33 @@ object SSH extends SSHAutoClose {
     port: Int = 22,
     timeout: Int = 300000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withsh)
 
+  /**
+    * Executes the given code then closes the new ssh shell associated session. 
+    * @param options ssh options
+    * @param withsh code bloc to execute
+    * @return "withssh" returns type
+    */
   def shell[T](options: SSHOptions)(withsh: (SSHShell) => T): T = usingSSH(new SSH(options)) { ssh =>
     ssh.shell { sh => withsh(sh) }
   }
+  /**
+    * Executes the given code then closes the new ssh shell associated session. 
+    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
+    * @param withsh code bloc to execute
+    * @return "withssh" returns type
+    */
   def shell[T](someOptions: Option[SSHOptions])(withsh: (SSHShell) => T): Option[T] = someOptions map { shell[T](_)(withsh) }
 
   /**
     * Executes the given code then closes the new ssh ftp channel associated session. 
-    * @param host
-    * @param username
-    * @param password
-    * @param passphrase
-    * @param port
-    * @param timeout
-    * @return Series statistics
+    * @param host ip address or hostname
+    * @param username user name
+    * @param password user password (if ommitted, will try public key authentication)
+    * @param passphrase keys passphrase (if required)
+    * @param port remote ssh port
+    * @param timeout timeout
+    * @param withftp code bloc to execute
+    * @return "withftp" returns type
     */
   def ftp[T](
     host: String = "localhost",
@@ -211,20 +247,34 @@ object SSH extends SSHAutoClose {
     port: Int = 22,
     timeout: Int = 300000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withftp)
 
+  /**
+    * Executes the given code then closes the new sftp associated session. 
+    * @param options ssh options
+    * @param withftp code bloc to execute
+    * @return "withftp" returns type
+    */
   def ftp[T](options: SSHOptions)(withftp: (SSHFtp) => T): T = usingSSH(new SSH(options)) { ssh =>
     ssh.ftp { ftp => withftp(ftp) }
   }
+  
+  /**
+    * Executes the given code then closes the new sftp associated session. 
+    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
+    * @param withftp code bloc to execute
+    * @return "withftp" returns type
+    */
   def ftp[T](someOptions: Option[SSHOptions])(withftp: (SSHFtp) => T): Option[T] = someOptions map { ftp[T](_)(withftp) }
 
   /**
     * Executes the given code then closes the new ssh shell and ftp channels associated sessions. 
-    * @param host
-    * @param username
-    * @param password
-    * @param passphrase
-    * @param port
-    * @param timeout
-    * @return what's the given code returns
+    * @param host ip address or hostname
+    * @param username user name
+    * @param password user password (if ommitted, will try public key authentication)
+    * @param passphrase keys passphrase (if required)
+    * @param port remote ssh port
+    * @param timeout timeout
+    * @param withshftp code bloc to execute
+    * @return "withshftp" returns type
     */
   def shellAndFtp[T](
     host: String = "localhost",
@@ -234,22 +284,33 @@ object SSH extends SSHAutoClose {
     port: Int = 22,
     timeout: Int = 300000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withshftp)
 
+  /**
+    * Executes the given code then closes the new ssh shell and sftp associated sessions. 
+    * @param options ssh options
+    * @param withshftp code bloc to execute
+    * @return "withshftp" returns type
+    */
   def shellAndFtp[T](options: SSHOptions)(withshftp: (SSHShell, SSHFtp) => T): T = usingSSH(new SSH(options)) { ssh =>
     ssh.shell { sh => ssh.ftp { ftp => withshftp(sh, ftp) } }
   }
+  /**
+    * Executes the given code then closes the new ssh shell and sftp associated sessions. 
+    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
+    * @param withshftp code bloc to execute
+    * @return "withshftp" returns type
+    */
   def shellAndFtp[T](someOptions: Option[SSHOptions])(withshftp: (SSHShell, SSHFtp) => T): Option[T] = someOptions map { shellAndFtp[T](_)(withshftp) }
 
   
-  
   /**
     * Creates a new SSH session, it is up to the user to manage close 
-    * @param host
-    * @param username
-    * @param password
-    * @param passphrase
-    * @param port
-    * @param timeout
-    * @return what's the given code returns
+    * @param host ip address or hostname
+    * @param username user name
+    * @param password user password (if ommitted, will try public key authentication)
+    * @param passphrase keys passphrase (if required)
+    * @param port remote ssh port
+    * @param timeout timeout
+    * @return SSH session
     */
   def apply(
     host: String = "localhost",
@@ -259,11 +320,29 @@ object SSH extends SSHAutoClose {
     port: Int = 22,
     timeout: Int = 300000) = new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
 
+  /**
+    * Creates a new SSH session, it is up to the user to manage close 
+    * @param options ssh options
+    * @return SSH session
+    */
   def apply(options: SSHOptions) = new SSH(options)
+  
+  /**
+    * Creates a new SSH session, it is up to the user to manage close 
+    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
+    * @return Some SSH session or None
+    */
   def apply(someOptions: Option[SSHOptions]): Option[SSH] = someOptions map { new SSH(_) }
 
 }
 
+
+
+
+/**
+  * SSH class. This class is the main entry point to the API
+  * @author David Crosson
+  */
 class SSH(val options: SSHOptions) extends SSHAutoClose {
   private implicit val ssh = this
   private val jsch = new JSch
@@ -344,73 +423,103 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   // Now a set of tools
 
   /**
-   * remote file size in bytes
+   * Remote file size in bytes
+   * @param filename
+   * @return optional file size, or None if filename was not found
    */
   def fileSize(filename: String):Option[Long] = shell { _.fileSize(filename)}
 
   /**
-   * remote file md5sum
+   * Remote file md5sum
+   * @param filename file name
+   * @return md5sum as an optional String, or None if filename was not found
    */
   def md5sum(filename: String):Option[String] = shell { _.md5sum(filename)}
-
+  
   /**
-   * remote file sha1sum
+   * Remote file sha1sum
+   * @param filename file name
+   * @return sha1sum as an optional String, or None if filename was not found
    */
   def sha1sum(filename: String):Option[String] = shell { _.sha1sum(filename)}
   
   /**
-   * *nix system name
+   * *nix system name (Linux, AIX, SunOS, ...)
+   * @return remote *nix system name
    */
   lazy val uname:String = shell { _.uname}
 
   /**
-   *  list files in specified directory
+   * List files in specified directory
+   * @return current directory files as an Iterable
    */
   def ls():Iterable[String] = shell {_.ls()}
+  
+  /**
+   * List files in specified directory
+   * @param dirname directory to look into
+   * @return current directory files as an Iterable
+   */
   def ls(dirname:String):Iterable[String] = shell {_.ls(dirname)}
   
   /**
-   * get current working directory
+   * Get current working directory
+   * @return current directory
    */
   def pwd():String = shell { _.pwd()}
 
   /**
-   * get remote host name
+   * Get remote host name
+   * @return host name
    */
   lazy val hostname:String = shell { _.hostname}
   
   /**
-   * get remote date
+   * Get remote date, as a java class Date instance (minimal resolution = 1 second)
+   * @return The remote system current date as a java Date class instance
    */
   def date():Date = shell { _.date()}
   
   /**
-   * find file modified after the given date
+   * Find file modified after the given date (Warning, minimal resolution = 1 minute) 
+   * @param root Search for file from this root directory
+   * @param after Date parameter
+   * @return list of paths (relative to root) modified after the specified date
    */
   def findAfterDate(root:String, after:Date):Iterable[String] = shell {_.findAfterDate(root, after)}
   
   /**
-   * generic the specified test (man test)
+   * Generic test (man test, for arguments)
+   * @param that condition
+   * @return True if condition is met
    */
-  def test(filename:String):Boolean = shell {_.test(filename)}
+  def test(that:String):Boolean = shell {_.test(that)}
   
   /**
-   * does specified filename exist ?
+   * Does specified filename exist ?
+   * @param filename file name
+   * @return True if file exists
    */
   def exists(filename:String):Boolean = shell {_.exists(filename)}
   
   /**
-   * is file name a directory
+   * Is file name a directory
+   * @param filename file name
+   * @return True if file is a directory
    */
   def isDirectory(filename:String):Boolean = shell {_.isDirectory(filename)}
   
   /**
-   * is file name a regular file
+   * Is file name a regular file
+   * @param filename file name
+   * @return True if file is a regular file
    */
   def isFile(filename:String):Boolean = shell {_.isFile(filename)}
   
   /**
-   * is filename executable ?
+   * Is filename executable ?
+   * @param filename file name
+   * @return True if file is executable
    */
   def isExecutable(filename:String):Boolean = shell {_.isExecutable(filename)}
 }
@@ -698,55 +807,77 @@ class SSHShell(implicit ssh: SSH) {
   }
   
   /**
-   * remote file size in bytes
+   * Remote file size in bytes
+   * @param filename file name
+   * @return optional file size, or None if filename was not found
    */
   def fileSize(filename: String):Option[Long] = 
     genoptcmd("""ls -ld "%s" """.format(filename)).map(_.split("""\s+""")(4).toLong)  
 
 
   /**
-   * remote file md5sum
+   * Remote file md5sum
+   * @param filename file name
+   * @return md5sum as an optional String, or None if filename was not found
    */
   def md5sum(filename: String):Option[String] =
     genoptcmd("""md5sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
 
   
   /**
-   * remote file sha1sum
+   * Remote file sha1sum
+   * @param filename file name 
+   * @return sha1sum as an optional String, or None if filename was not found
    */
   def sha1sum(filename: String):Option[String] =
     genoptcmd("""sha1sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
 
   
   /**
-   * *nix system name
+   * *nix system name (Linux, AIX, SunOS, ...)
+   * @return remote *nix system name
    */
   lazy val uname:String = executeAndTrim("""uname 2>/dev/null""")
   
   /**
-   *  list files in specified directory
+   * List files in specified directory
+   * @return current directory files as an Iterable
    */
   def ls():Iterable[String] = ls(".")
+
+  /**
+   * List files in specified directory
+   * @param dirname directory to look into
+   * @return current directory files as an Iterable
+   */
   def ls(dirname:String):Iterable[String] = executeAndTrimSplit("""ls --format=single-column "%s" """.format(dirname))
   
   /**
-   * get current working directory
+   * Get current working directory
+   * @return current directory
    */
   def pwd():String = executeAndTrim("""pwd""")
   
   /**
-   * change current working directory
+   * Change current working directory to home directory
    */
   def cd() {execute("cd")}
+  
+  /**
+   * Change current working directory to the specified directory
+   * @param dirname directory name
+   */
   def cd(dirname:String) {execute("""cd "%s" """.format(dirname))}
   
   /**
-   * get remote host name
+   * Get remote host name
+   * @return host name
    */
   lazy val hostname:String = executeAndTrim("""hostname""")
 
   /**
-   * get remote date, as a java class Date instance
+   * Get remote date, as a java class Date instance (minimal resolution = 1 second)
+   * @return The remote system current date as a java Date class instance
    */
   def date():Date = {
     val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z")
@@ -755,7 +886,10 @@ class SSHShell(implicit ssh: SSH) {
   }
   
   /**
-   * find file modified after the given date
+   * Find file modified after the given date (Warning, minimal resolution = 1 minute) 
+   * @param root Search for file from this root directory
+   * @param after Date parameter
+   * @return list of paths (relative to root) modified after the specified date
    */
   def findAfterDate(root:String, after:Date):Iterable[String] = {
     def ellapsedInMn(thatDate:Date):Long =  (date().getTime - thatDate.getTime)/1000/60
@@ -771,7 +905,7 @@ class SSHShell(implicit ssh: SSH) {
 
   
   /**
-   * generic test usage
+   * Generic test usage
    */
   private def testFile(testopt:String, filename:String):Boolean = {
     val cmd = """test %s "%s" ; echo $?""".format(testopt, filename)
@@ -779,7 +913,9 @@ class SSHShell(implicit ssh: SSH) {
   }
 
   /**
-   * generic the specified test (man test)
+   * Generic test (man test, for arguments)
+   * @param that condition
+   * @return True if condition is met
    */
   def test(that:String):Boolean = {
     val cmd = """test %s ; echo $?""".format(that)
@@ -787,22 +923,30 @@ class SSHShell(implicit ssh: SSH) {
   }
   
   /**
-   * does specified filename exist ?
+   * Does specified filename exist ?
+   * @param filename file name
+   * @return True if file exists
    */
   def exists(filename:String):Boolean = testFile("-e", filename)
 
   /**
-   * is file name a directory
+   * Is file name a directory
+   * @param filename file name
+   * @return True if file is a directory
    */
   def isDirectory(filename:String):Boolean = testFile("-d", filename)
   
   /**
-   * is file name a regular file
+   * Is file name a regular file
+   * @param filename file name
+   * @return True if file is a regular file
    */
   def isFile(filename:String):Boolean = testFile("-f", filename)
   
   /**
-   * is filename executable ?
+   * Is filename executable ?
+   * @param filename file name
+   * @return True if file is executable
    */
   def isExecutable(filename:String):Boolean = testFile("-x", filename)
 }

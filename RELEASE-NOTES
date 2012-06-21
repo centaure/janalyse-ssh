@@ -5,6 +5,7 @@ TODO :
   => Add tests with a remote host, in addition to localhost
   => "ls --format=single-column" may to be replaced by "ls | cat"
   => Check if "date '+%Y-%m-%d %H:%M:%S %z'" is supported on all *nix
+  => sftp is sometimes not available, add support for SCP operations, reuse older implementation
 
 CAVEATS : 
   => ssh persisted shell session operations must be executed within the same thread, 
@@ -22,6 +23,7 @@ CAVEATS :
    Shell.date -> remote system time zone is now taken into account
  - test cases fix :
    Forcing parallelism to 6 ! for test case "Simultaenous SSH operations"
+ - scaladocumenting
 
 ------------------------------------------------------------------
 0.8.0

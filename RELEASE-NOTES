@@ -24,9 +24,10 @@ CAVEATS :
    test, exists, isFile, isDirectory, isExecutable 
  - findAfterDate & date helper fix !!
    Shell.date -> remote system time zone is now taken into account
- - test cases fix :
+ - Test cases fixes :
    Forcing parallelism to 6 ! for test case "Simultaenous SSH operations"
- - scaladocumenting
+ - Scaladocumenting
+ - Code factorization : ShellOperations trait added. Inherited by SSH and SSHShell.
 
 ------------------------------------------------------------------
 0.8.0

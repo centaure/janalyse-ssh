@@ -41,12 +41,16 @@ trait SSHAutoClose {
   }
 }
 
+
+
+
+
 /**
   * SSHCommand class models ssh command
   * @author David Crosson
   */
 class SSHCommand(val cmd: String) {
-  def §§(implicit ssh: SSH) = ssh.shell { _ execute cmd }
+  def §§(implicit ssh: SSH) = ssh.shell { _ execute this }
 }
 
 /**
@@ -57,12 +61,17 @@ object SSHCommand {
   implicit def stringToCommand(cmd: String) = new SSHCommand(cmd)
 }
 
+
+
+
+
+
 /**
   * SSHBatch class models ssh batch (in fact a list of commands)  
   * @author David Crosson
   */
 class SSHBatch(val cmdList: List[String]) {
-  def §§(implicit ssh: SSH) = ssh.shell { _ execute cmdList }
+  def §§(implicit ssh: SSH) = ssh.shell { _ execute this }
 }
 
 /**
@@ -72,6 +81,10 @@ class SSHBatch(val cmdList: List[String]) {
 object SSHBatch {
   implicit def stringListToBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
 }
+
+
+
+
 
 
 /**
@@ -100,6 +113,221 @@ class SSHRemoteFile(val remoteFilename: String) {
 object SSHRemoteFile {
   implicit def stringToRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
+
+
+
+
+
+/**
+ * ShellShortcuts defines common commands
+ */
+trait ShellOperations {
+  
+  /**
+   * Execute the current command and return the result as a string
+   * @param cmd command to be executed
+   * @return result string
+   */
+  def execute(cmd: SSHCommand): String
+
+
+  /**
+   * Execute the current batch (list of commands) and return the result as a string collection
+   * @param cmds batch to be executed
+   * @return result string collection
+   */
+  def execute(cmds: SSHBatch):List[String]
+
+  
+  /**
+   * Execute the current command and pass the result to the given code
+   * @param cmd command to be executed
+   * @param cont continuation code
+   */
+  def executeAndContinue(cmd: SSHCommand, cont: String => Unit): Unit = cont(execute(cmd))
+
+  /**
+   * Execute the current command and return the result as a trimmed string
+   * @param cmd command to be executed
+   * @return result string
+   */
+  def executeAndTrim(cmd: SSHCommand): String = execute(cmd).trim()
+
+  /**
+   * Execute the current command and return the result as a trimmed splitted string
+   * @param cmd command to be executed
+   * @return result string
+   */
+  def executeAndTrimSplit(cmd: SSHCommand): Array[String] = execute(cmd).trim().split("\r?\n")
+  
+  /**
+   * Execute the current batch (list of commands) and return the result as a string collection
+   * @param cmds batch to be executed
+   * @return result trimmed string collection
+   */
+  def executeAndTrim(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim }
+
+  /**
+   * Execute the current batch (list of commands) and return the result as a string collection
+   * @param cmds batch to be executed
+   * @return result trimmed splitted string collection
+   */
+  def executeAndTrimSplit(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim.split("\r?\n") }
+  
+  /**
+   * Remote file size in bytes
+   * @param filename file name
+   * @return optional file size, or None if filename was not found
+   */
+  def fileSize(filename: String):Option[Long] = 
+    genoptcmd("""ls -ld "%s" """.format(filename)).map(_.split("""\s+""")(4).toLong)
+
+  /**
+   * Remote file md5sum
+   * @param filename file name
+   * @return md5sum as an optional String, or None if filename was not found
+   */
+  def md5sum(filename: String):Option[String] =
+    genoptcmd("""md5sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
+  
+  /**
+   * Remote file sha1sum
+   * @param filename file name 
+   * @return sha1sum as an optional String, or None if filename was not found
+   */
+  def sha1sum(filename: String):Option[String] =
+    genoptcmd("""sha1sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
+  
+  /**
+   * *nix system name (Linux, AIX, SunOS, ...)
+   * @return remote *nix system name
+   */
+  def uname:String = executeAndTrim("""uname 2>/dev/null""")
+  
+  /**
+   * List files in specified directory
+   * @return current directory files as an Iterable
+   */
+  def ls():Iterable[String] = ls(".")
+
+  /**
+   * List files in specified directory
+   * @param dirname directory to look into
+   * @return current directory files as an Iterable
+   */
+  def ls(dirname:String):Iterable[String] = executeAndTrimSplit("""ls --format=single-column "%s" """.format(dirname))
+  
+  /**
+   * Get current working directory
+   * @return current directory
+   */
+  def pwd():String = executeAndTrim("pwd")
+  
+  /**
+   * Change current working directory to home directory
+   */
+  def cd() {execute("cd")}
+  
+  /**
+   * Change current working directory to the specified directory
+   * @param dirname directory name
+   */
+  def cd(dirname:String) {execute("""cd "%s" """.format(dirname))}
+  
+  /**
+   * Get remote host name
+   * @return host name
+   */
+  def hostname:String = executeAndTrim("""hostname""")
+
+  /**
+   * Get remote date, as a java class Date instance (minimal resolution = 1 second)
+   * @return The remote system current date as a java Date class instance
+   */
+  def date():Date = {
+    val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z")
+    val d = executeAndTrim("date '+%Y-%m-%d %H:%M:%S %z'")
+    sdf.parse(d)
+  }
+  
+  /**
+   * Find file modified after the given date (Warning, minimal resolution = 1 minute) 
+   * @param root Search for file from this root directory
+   * @param after Date parameter
+   * @return list of paths (relative to root) modified after the specified date
+   */
+  def findAfterDate(root:String, after:Date):Iterable[String] = {
+    def ellapsedInMn(thatDate:Date):Long =  (date().getTime - thatDate.getTime)/1000/60
+    //deprecated : // def ellapsedInMn(thatDate:Date):Long =  (new Date().getTime - thatDate.getTime)/1000/60
+    val findpattern = uname.toLowerCase match {
+	    case "linux"|"aix" => """find %s -follow -type f -mmin '-%d' 2>/dev/null"""   // "%s" => %s to enable file/dir patterns
+	    case "sunos" => throw new RuntimeException("SunOS not supported - find command doesn't support -mmin parameter")
+	    case _       => """find %s -type f -mmin '-%d' 2>/dev/null"""
+    }
+    val findcommand = findpattern.format(root, ellapsedInMn(after))
+    executeAndTrimSplit(findcommand)
+  }
+
+  /**
+   * Generic test (man test, for arguments)
+   * @param that condition
+   * @return True if condition is met
+   */
+  def test(that:String):Boolean = {
+    val cmd = """test %s ; echo $?""".format(that)
+    executeAndTrim(cmd).toInt == 0
+  }
+  
+  /**
+   * Does specified filename exist ?
+   * @param filename file name
+   * @return True if file exists
+   */
+  def exists(filename:String):Boolean = testFile("-e", filename)
+
+  /**
+   * Is file name a directory
+   * @param filename file name
+   * @return True if file is a directory
+   */
+  def isDirectory(filename:String):Boolean = testFile("-d", filename)
+  
+  /**
+   * Is file name a regular file
+   * @param filename file name
+   * @return True if file is a regular file
+   */
+  def isFile(filename:String):Boolean = testFile("-f", filename)
+  
+  /**
+   * Is filename executable ?
+   * @param filename file name
+   * @return True if file is executable
+   */
+  def isExecutable(filename:String):Boolean = testFile("-x", filename)
+
+
+  /**
+   * internal helper method
+   */
+  private def genoptcmd(cmd:String):Option[String] = {
+    executeAndTrim("""%s 2>/dev/null""".format(cmd)) match {
+      case "" => None
+      case str => Some(str)
+    }    
+  }
+  
+  /**
+   * Generic test usage
+   */
+  private def testFile(testopt:String, filename:String):Boolean = {
+    val cmd = """test %s "%s" ; echo $?""".format(testopt, filename)
+    executeAndTrim(cmd).toInt == 0
+  }
+
+  
+}
+
 
 
 /**
@@ -144,6 +372,9 @@ case class SSHOptions(
   sshUserDir: String = SP.userHome + FS + ".ssh",
   charset: String = "ISO-8859-15")
 
+  
+  
+  
   
 /**
   * SSH object factories
@@ -339,11 +570,14 @@ object SSH extends SSHAutoClose {
 
 
 
+
+
+
 /**
   * SSH class. This class is the main entry point to the API
   * @author David Crosson
   */
-class SSH(val options: SSHOptions) extends SSHAutoClose {
+class SSH(val options: SSHOptions) extends SSHAutoClose with ShellOperations {
   private implicit val ssh = this
   private val jsch = new JSch
   val jschsession: Session = {
@@ -367,20 +601,14 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
   def noerr(data: Option[String]) {}
 
   def run(cmd: String, out: Option[String] => Any, err: Option[String] => Any = noerr) = new SSHExec(cmd, out, err)
-
-  def execute(cmd: SSHCommand) =
+  
+  override def execute(cmd: SSHCommand) =
     //shell { _ execute cmd.cmd }    // Using SSHShell channel  (lower performances)
     execOnce(cmd) // Using SSHExec channel (better performances)
 
-  def executeAndTrim(cmd: SSHCommand) = execute(cmd).trim()
+    
+  override def execute(cmds: SSHBatch) = shell { _ execute cmds.cmdList }
 
-  def executeAndTrimSplit(cmd: SSHCommand) = execute(cmd).trim().split("\r?\n")
-
-  def execute(cmds: SSHBatch) = shell { _ execute cmds.cmdList }
-
-  def executeAndTrim(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim }
-
-  def executeAndTrimSplit(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim.split("\r?\n") }
 
   def execOnceAndTrim(scmd: SSHCommand) = execOnce(scmd).trim()
 
@@ -420,108 +648,6 @@ class SSH(val options: SSHOptions) extends SSHAutoClose {
 
   def close() { jschsession.disconnect }
 
-  // Now a set of tools
-
-  /**
-   * Remote file size in bytes
-   * @param filename file name
-   * @return optional file size, or None if filename was not found
-   */
-  def fileSize(filename: String):Option[Long] = shell { _.fileSize(filename)}
-
-  /**
-   * Remote file md5sum
-   * @param filename file name
-   * @return md5sum as an optional String, or None if filename was not found
-   */
-  def md5sum(filename: String):Option[String] = shell { _.md5sum(filename)}
-  
-  /**
-   * Remote file sha1sum
-   * @param filename file name
-   * @return sha1sum as an optional String, or None if filename was not found
-   */
-  def sha1sum(filename: String):Option[String] = shell { _.sha1sum(filename)}
-  
-  /**
-   * *nix system name (Linux, AIX, SunOS, ...)
-   * @return remote *nix system name
-   */
-  lazy val uname:String = shell { _.uname}
-
-  /**
-   * List files in specified directory
-   * @return current directory files as an Iterable
-   */
-  def ls():Iterable[String] = shell {_.ls()}
-  
-  /**
-   * List files in specified directory
-   * @param dirname directory to look into
-   * @return current directory files as an Iterable
-   */
-  def ls(dirname:String):Iterable[String] = shell {_.ls(dirname)}
-  
-  /**
-   * Get current working directory
-   * @return current directory
-   */
-  def pwd():String = shell { _.pwd()}
-
-  /**
-   * Get remote host name
-   * @return host name
-   */
-  lazy val hostname:String = shell { _.hostname}
-  
-  /**
-   * Get remote date, as a java class Date instance (minimal resolution = 1 second)
-   * @return The remote system current date as a java Date class instance
-   */
-  def date():Date = shell { _.date()}
-  
-  /**
-   * Find file modified after the given date (Warning, minimal resolution = 1 minute) 
-   * @param root Search for file from this root directory
-   * @param after Date parameter
-   * @return list of paths (relative to root) modified after the specified date
-   */
-  def findAfterDate(root:String, after:Date):Iterable[String] = shell {_.findAfterDate(root, after)}
-  
-  /**
-   * Generic test (man test, for arguments)
-   * @param that condition
-   * @return True if condition is met
-   */
-  def test(that:String):Boolean = shell {_.test(that)}
-  
-  /**
-   * Does specified filename exist ?
-   * @param filename file name
-   * @return True if file exists
-   */
-  def exists(filename:String):Boolean = shell {_.exists(filename)}
-  
-  /**
-   * Is file name a directory
-   * @param filename file name
-   * @return True if file is a directory
-   */
-  def isDirectory(filename:String):Boolean = shell {_.isDirectory(filename)}
-  
-  /**
-   * Is file name a regular file
-   * @param filename file name
-   * @return True if file is a regular file
-   */
-  def isFile(filename:String):Boolean = shell {_.isFile(filename)}
-  
-  /**
-   * Is filename executable ?
-   * @param filename file name
-   * @return True if file is executable
-   */
-  def isExecutable(filename:String):Boolean = shell {_.isExecutable(filename)}
 }
 
 
@@ -666,7 +792,12 @@ class SSHFtp(implicit ssh: SSH) {
 
 }
 
-class SSHShell(implicit ssh: SSH) {
+
+
+
+
+
+class SSHShell(implicit ssh: SSH) extends ShellOperations {
   val readyMessage = "ready-" + System.currentTimeMillis()
   val defaultPrompt = """-PRMT-: """
   val customPromptGiven = ssh.options.prompt.isDefined
@@ -691,13 +822,6 @@ class SSHShell(implicit ssh: SSH) {
     (ch, toServer, fromServer)
   }
 
-  def execute[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
-    var builder = bf.apply()
-    try {
-      for (cmd <- commands) builder += (execute(cmd))
-    }
-    builder.result
-  }
 
   def close() = {
     fromServer.close()
@@ -705,17 +829,23 @@ class SSHShell(implicit ssh: SSH) {
     channel.disconnect()
   }
 
-  def executeAndContinue(cmd: String, cont: String => Unit): Unit = cont(execute(cmd))
-
-  def executeAndTrim(cmd: String): String = execute(cmd).trim()
-
-  def executeAndTrimSplit(cmd: String): Array[String] = execute(cmd).trim().split("\r?\n")
-
-  def execute(cmd: String, timeout: Long = ssh.options.timeout): String = {
-    sendCommand(cmd)
+  override def execute(cmd: SSHCommand): String = {
+    sendCommand(cmd.cmd)
     fromServer.getResponse()
   }
 
+  override def execute(cmds: SSHBatch):List[String] =  cmds.cmdList.map(execute(_))
+
+  /*
+  def execute[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
+    var builder = bf.apply()
+    try {
+      for (cmd <- commands) builder += (execute(cmd))
+    }
+    builder.result
+  }
+*/
+  
   private var doInit = true
   private def sendCommand(cmd: String): Unit = {
     if (doInit) {
@@ -797,158 +927,6 @@ class SSHShell(implicit ssh: SSH) {
     }
   }
 
-  // Now a set of useful method for standard *nix systems
-
-  private def genoptcmd(cmd:String):Option[String] = {
-    executeAndTrim("""%s 2>/dev/null""".format(cmd)) match {
-      case "" => None
-      case str => Some(str)
-    }    
-  }
-  
-  /**
-   * Remote file size in bytes
-   * @param filename file name
-   * @return optional file size, or None if filename was not found
-   */
-  def fileSize(filename: String):Option[Long] = 
-    genoptcmd("""ls -ld "%s" """.format(filename)).map(_.split("""\s+""")(4).toLong)  
-
-
-  /**
-   * Remote file md5sum
-   * @param filename file name
-   * @return md5sum as an optional String, or None if filename was not found
-   */
-  def md5sum(filename: String):Option[String] =
-    genoptcmd("""md5sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
-
-  
-  /**
-   * Remote file sha1sum
-   * @param filename file name 
-   * @return sha1sum as an optional String, or None if filename was not found
-   */
-  def sha1sum(filename: String):Option[String] =
-    genoptcmd("""sha1sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
-
-  
-  /**
-   * *nix system name (Linux, AIX, SunOS, ...)
-   * @return remote *nix system name
-   */
-  lazy val uname:String = executeAndTrim("""uname 2>/dev/null""")
-  
-  /**
-   * List files in specified directory
-   * @return current directory files as an Iterable
-   */
-  def ls():Iterable[String] = ls(".")
-
-  /**
-   * List files in specified directory
-   * @param dirname directory to look into
-   * @return current directory files as an Iterable
-   */
-  def ls(dirname:String):Iterable[String] = executeAndTrimSplit("""ls --format=single-column "%s" """.format(dirname))
-  
-  /**
-   * Get current working directory
-   * @return current directory
-   */
-  def pwd():String = executeAndTrim("""pwd""")
-  
-  /**
-   * Change current working directory to home directory
-   */
-  def cd() {execute("cd")}
-  
-  /**
-   * Change current working directory to the specified directory
-   * @param dirname directory name
-   */
-  def cd(dirname:String) {execute("""cd "%s" """.format(dirname))}
-  
-  /**
-   * Get remote host name
-   * @return host name
-   */
-  lazy val hostname:String = executeAndTrim("""hostname""")
-
-  /**
-   * Get remote date, as a java class Date instance (minimal resolution = 1 second)
-   * @return The remote system current date as a java Date class instance
-   */
-  def date():Date = {
-    val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z")
-    val d = executeAndTrim("date '+%Y-%m-%d %H:%M:%S %z'")
-    sdf.parse(d)
-  }
-  
-  /**
-   * Find file modified after the given date (Warning, minimal resolution = 1 minute) 
-   * @param root Search for file from this root directory
-   * @param after Date parameter
-   * @return list of paths (relative to root) modified after the specified date
-   */
-  def findAfterDate(root:String, after:Date):Iterable[String] = {
-    def ellapsedInMn(thatDate:Date):Long =  (date().getTime - thatDate.getTime)/1000/60
-    //deprecated : // def ellapsedInMn(thatDate:Date):Long =  (new Date().getTime - thatDate.getTime)/1000/60
-    val findpattern = uname.toLowerCase match {
-	    case "linux"|"aix" => """find %s -follow -type f -mmin '-%d' 2>/dev/null"""   // "%s" => %s to enable file/dir patterns
-	    case "sunos" => throw new RuntimeException("SunOS not supported - find command doesn't support -mmin parameter")
-	    case _       => """find %s -type f -mmin '-%d' 2>/dev/null"""
-    }
-    val findcommand = findpattern.format(root, ellapsedInMn(after))
-    executeAndTrimSplit(findcommand)
-  }
-
-  
-  /**
-   * Generic test usage
-   */
-  private def testFile(testopt:String, filename:String):Boolean = {
-    val cmd = """test %s "%s" ; echo $?""".format(testopt, filename)
-    executeAndTrim(cmd).toInt == 0
-  }
-
-  /**
-   * Generic test (man test, for arguments)
-   * @param that condition
-   * @return True if condition is met
-   */
-  def test(that:String):Boolean = {
-    val cmd = """test %s ; echo $?""".format(that)
-    executeAndTrim(cmd).toInt == 0
-  }
-  
-  /**
-   * Does specified filename exist ?
-   * @param filename file name
-   * @return True if file exists
-   */
-  def exists(filename:String):Boolean = testFile("-e", filename)
-
-  /**
-   * Is file name a directory
-   * @param filename file name
-   * @return True if file is a directory
-   */
-  def isDirectory(filename:String):Boolean = testFile("-d", filename)
-  
-  /**
-   * Is file name a regular file
-   * @param filename file name
-   * @return True if file is a regular file
-   */
-  def isFile(filename:String):Boolean = testFile("-f", filename)
-  
-  /**
-   * Is filename executable ?
-   * @param filename file name
-   * @return True if file is executable
-   */
-  def isExecutable(filename:String):Boolean = testFile("-x", filename)
 }
 
 

@@ -29,9 +29,9 @@ import java.io.IOException
 @RunWith(classOf[JUnitRunner])
 class SSHAPITest extends FunSuite with ShouldMatchers {
 
-  def howLongFor[T](what: () => T) = {
+  def howLongFor[T](what: => T) = {
     val begin = System.currentTimeMillis()
-    val result = what()
+    val result = what
     val end = System.currentTimeMillis()
     (end - begin, result)
   }
@@ -91,8 +91,9 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   test("SSHShell : Bad performances obtained without persistent schell ssh channel (autoclose)") {
     val howmany=200
     SSH.once(sshopts) { ssh =>
-      val (dur, _) = howLongFor(() =>
-        for (i <- 1 to howmany) { ssh execute "ls -d /tmp && echo 'done'" })
+      val (dur, _) = howLongFor {
+        for (i <- 1 to howmany) { ssh execute "ls -d /tmp && echo 'done'" }
+      }
       val throughput = howmany.doubleValue() / dur * 1000
       info("Performance using shell without channel persistency : %.1f cmd/s".format(throughput))
     }
@@ -102,8 +103,9 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     val howmany=5000
     SSH.once(sshopts) {
       _.shell { sh =>
-        val (dur, _) = howLongFor(() =>
-          for (i <- 1 to howmany) { sh execute "ls -d /tmp && echo 'done'" })
+        val (dur, _) = howLongFor {
+          for (i <- 1 to howmany) { sh execute "ls -d /tmp && echo 'done'" }
+        }
         val throughput = howmany.doubleValue() / dur * 1000
         info("Performance using with channel persistency : %.1f cmd/s".format(throughput))
       }
@@ -113,8 +115,9 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   test("SSHExec : performances obtained using exec ssh channel (no persistency)") {
     val howmany=200
     SSH.once(sshopts) { ssh =>
-      val (dur, _) = howLongFor(() =>
-        for (i <- 1 to howmany) { ssh execOnce "ls -d /tmp && echo 'done'"})
+      val (dur, _) = howLongFor {
+        for (i <- 1 to howmany) { ssh execOnce "ls -d /tmp && echo 'done'"}
+      }
       val throughput = howmany.doubleValue() / dur * 1000
       info("Performance using exec ssh channel (no persistency) : %.1f cmd/s".format(throughput))
     }
@@ -143,7 +146,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       
       val uname = ssh executeAndTrim "uname -a"
       val fsstatus = ssh execute "df -m"
-      val fmax = ssh get "/proc/sys/fs/file-max"
+      val fmax = ssh get "/proc/sys/fs/file-max" // Warning SCP only work with regular file
       
       ssh.shell { sh => // For higher performances
         val hostname = sh.executeAndTrim("hostname")
@@ -252,5 +255,55 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       date().getTime          should (be>(reftime-1000) and be<(reftime+1000))
     }
   }
+
+  //==========================================================================================================
+  test("file transfert performances (with content loaded in memory, no subchannel reused)") {
+    val testfile="test-transfert"
+      
+    def withSCP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
+      for(_ <- 1 to howmany)
+        ssh.getBytes(filename).map(_.length) should equal(Some(sizeKb*1024))
+    }
+    def withSFTP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
+      for(_ <- 1 to howmany)
+        ssh.ftp(_.getBytes(filename)).map(_.length) should equal(Some(sizeKb*1024))
+    }
+    def withReusedSFTP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
+      ssh.ftp { ftp =>
+        for(_ <- 1 to howmany)
+          ftp.getBytes(filename).map(_.length) should equal(Some(sizeKb*1024))
+      }
+    }
+      
+    
+    def toTest(thattest:(String, SSH, Int, Int)=>Unit,
+               howmany:Int,
+               sizeKb:Int,
+               comments:String)(ssh:SSH) {
+      ssh.execute("dd count=%d bs=1024 if=/dev/zero of=%s".format(sizeKb, testfile))
+      val (d, _) = howLongFor {
+        thattest(testfile, ssh, howmany, sizeKb) 
+      }
+      info("Bytes rate : %.1fMb/s %dMb in %.1fs for %d files - %s".format(howmany*sizeKb*1000L/d/1024d, sizeKb*howmany/1024, d/1000d, howmany, comments))      
+    }
+    
+    val withCipher=SSHOptions("localhost", "test", noneCipher=false)
+    val noneCipher=SSHOptions("localhost", "test", noneCipher=true)
+    
+    SSH.once(withCipher) (toTest(withSCP, 5, 100*1024, "byterates using SCP"))
+    SSH.once(noneCipher) (toTest(withSCP, 5, 100*1024, "byterates using SCP (with none cipher)"))
+    SSH.once(withCipher) (toTest(withSFTP, 5, 100*1024, "byterates using SFTP"))
+    SSH.once(noneCipher) (toTest(withSFTP, 5, 100*1024, "byterates using SFTP (with none cipher)"))
+    SSH.once(withCipher) (toTest(withReusedSFTP, 5, 100*1024, "byterates using SFTP (session reused"))
+    SSH.once(noneCipher) (toTest(withReusedSFTP, 5, 100*1024, "byterates using SFTP (session reused, with none cipher)"))
+    
+    SSH.once(withCipher) (toTest(withSCP, 500, 1024, "byterates using SCP"))
+    SSH.once(noneCipher) (toTest(withSCP, 500, 1024, "byterates using SCP (with none cipher)"))
+    SSH.once(withCipher) (toTest(withSFTP, 500, 1024, "byterates using SFTP"))
+    SSH.once(noneCipher) (toTest(withSFTP, 500, 1024, "byterates using SFTP (with none cipher)"))
+    SSH.once(withCipher) (toTest(withReusedSFTP, 500, 1024, "byterates using SFTP (session reused)"))
+    SSH.once(noneCipher) (toTest(withReusedSFTP, 500, 1024, "byterates using SFTP (session reused, with none cipher)"))
+  }
+
 }
 

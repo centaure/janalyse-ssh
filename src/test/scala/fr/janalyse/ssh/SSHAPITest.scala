@@ -210,10 +210,10 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   ignore("timeout tests") { // TODO : not working, make timeout possible with too long running remote command; (^C is already possible)!!
     val opts = SSHOptions(host="localhost", username="test", timeout=5000, connectTimeout=2000)
-    SSH.shell(opts) {sh =>
-      sh.executeAndTrim("sleep 4; echo 'ok'") should equal("ok")
+    SSH.once(opts) {ssh =>
+      ssh.executeAndTrim("sleep 4; echo 'ok'") should equal("ok")
       intercept[IOException] {
-        sh.executeAndTrim("sleep 10; echo 'ok'") should equal("ok")
+        ssh.executeAndTrim("sleep 10; echo 'ok'") should equal("ok")
       }
     }
   }
@@ -257,7 +257,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   //==========================================================================================================
-  test("file transfert performances (with content loaded in memory, no subchannel reused)") {
+  ignore("file transfert performances (with content loaded in memory, no subchannel reused)") {
     val testfile="test-transfert"
       
     def withSCP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
@@ -305,5 +305,63 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     SSH.once(noneCipher) (toTest(withReusedSFTP, 500, 1024, "byterates using SFTP (session reused, with none cipher)"))
   }
 
+  //==========================================================================================================
+  test("ssh compression") {
+    val testfile="test-transfert"
+      
+    def withSCP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
+      for(_ <- 1 to howmany)
+        ssh.getBytes(filename).map(_.length) should equal(Some(sizeKb*1024))
+    }
+    def withSFTP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
+      for(_ <- 1 to howmany)
+        ssh.ftp(_.getBytes(filename)).map(_.length) should equal(Some(sizeKb*1024))
+    }
+    def withReusedSFTP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
+      ssh.ftp { ftp =>
+        for(_ <- 1 to howmany)
+          ftp.getBytes(filename).map(_.length) should equal(Some(sizeKb*1024))
+      }
+    }
+      
+    
+    def toTest(thattest:(String, SSH, Int, Int)=>Unit,
+               howmany:Int,
+               sizeKb:Int,
+               comments:String)(ssh:SSH) {
+      ssh.execute("dd count=%d bs=1024 if=/dev/zero of=%s".format(sizeKb, testfile))
+      val (d, _) = howLongFor {
+        thattest(testfile, ssh, howmany, sizeKb) 
+      }
+      info("Bytes rate : %.1fMb/s %dMb in %.1fs for %d files - %s".format(howmany*sizeKb*1000L/d/1024d, sizeKb*howmany/1024, d/1000d, howmany, comments))      
+    }
+    
+    val withCompress = SSHOptions("localhost", "test", compress=None)
+    val noCompress = SSHOptions("localhost", "test", compress=Some(9))
+    
+    SSH.once(withCompress) (toTest(withReusedSFTP, 1, 100*1024, "byterates using SFTP (max compression)"))
+    SSH.once(noCompress) (toTest(withReusedSFTP, 1, 100*1024, "byterates using SFTP (no compression)"))
+  }
+
+  //==========================================================================================================
+  test("tunneling test remote->local") {
+    SSH.once("localhost", "test", port=22) { ssh1 =>
+      ssh1.remote2Local(22022, "localhost", 22)
+      SSH.once("localhost", "test", port=22022) { ssh2 => 
+        ssh2.executeAndTrim("echo 'works'") should equal("works")
+      }
+    }
+  }
+  
+  //==========================================================================================================
+  test("tunneling test local->remote") {
+    SSH.once("localhost", "test", port=22) { ssh1 =>
+      ssh1.local2Remote(33033, "localhost", 22) // TODO - hmmmm param mismatch... check that
+      SSH.once("localhost", "test", port=33033) { ssh2 => 
+        ssh2.executeAndTrim("echo 'works'") should equal("works")
+      }
+    }
+  }
+  
 }
 

@@ -33,15 +33,10 @@ import java.util.concurrent.locks.LockSupport
 import java.util.Date
 import java.text.SimpleDateFormat
 
-trait SSHAutoClose {
-  // Automatic resource liberation
-  def usingSSH[T <: { def close() }, R](resource: T)(block: T => R) = {
-    try block(resource)
-    finally resource.close
-  }
-}
 
 
+
+// ==========================================================================================
 
 
 
@@ -62,6 +57,7 @@ object SSHCommand {
 }
 
 
+// ==========================================================================================
 
 
 
@@ -83,6 +79,7 @@ object SSHBatch {
 }
 
 
+// ==========================================================================================
 
 
 
@@ -115,11 +112,80 @@ object SSHRemoteFile {
 }
 
 
-
+// ==========================================================================================
 
 
 /**
- * ShellShortcuts defines common commands
+ * TransfertOperations defines generic data transfer operations over SCP or SFTP
+ */
+trait TransfertOperations {
+  /**
+   * get remote file content as an optional String
+   * @param remoteFilename file content to get
+   * @return Some content or None if file was not found 
+   */
+  def get(remoteFilename: String):Option[String]
+
+  /**
+   * get remote file content as an optional bytes array
+   * @param remoteFilename file content to get
+   * @return Some content or None if file was not found 
+   */
+  def getBytes(remoteFilename: String):Option[Array[Byte]]
+
+  /**
+   * Copy a remote file to a local one
+   * @param remoteFilename Source file name (on remote system)
+   * @param localFile Destination file (local system)
+   */
+  def receive(remoteFilename: String, toLocalFile: File)
+  
+  /**
+   * Copy a remote file to a local one
+   * @param remoteFilename Source file name (on remote system)
+   * @param localFilename Destination file name (local system)
+   */
+  def receive(remoteFilename: String, localFilename: String) {
+    receive(remoteFilename, new File(localFilename))
+  }
+  
+  /**
+   * upload string content to a remote file, if file already exists, it is overwritten
+   * @param data content to upload in the remote file
+   * @param remoteDestination file content to get 
+   */
+  def put(data: String, remoteDestination: String)
+
+  /**
+   * upload bytes array content to a remote file, if file already exists, it is overwritten
+   * @param data content to upload in the remote file
+   * @param remoteDestination file content to get 
+   */
+  def putBytes(data: Array[Byte], remoteDestination: String)
+
+  
+  /**
+   * Copy a local file to a remote one
+   * @param fromLocalFilename Source file name (local system)
+   * @param remoteDestination Destination file name (on remote system)
+   */
+  def send(fromLocalFilename: String, remoteDestination: String) {
+    send(new File(fromLocalFilename), remoteDestination)
+  }
+
+  /**
+   * Copy a local file to a remote one
+   * @param fromLocalFile Source file (local system)
+   * @param remoteDestination Destination file name (on remote system)
+   */
+  def send(fromLocalFile: File, remoteDestination: String)
+
+}
+
+// ==========================================================================================
+
+/**
+ * ShellOperations defines generic shell operations and common shell commands shortcuts
  */
 trait ShellOperations {
   
@@ -225,11 +291,13 @@ trait ShellOperations {
   
   /**
    * Change current working directory to home directory
+   * Of course this requires a persistent shell session to be really useful...
    */
   def cd() {execute("cd")}
   
   /**
    * Change current working directory to the specified directory
+   * Of course this requires a persistent shell session to be really useful...
    * @param dirname directory name
    */
   def cd(dirname:String) {execute("""cd "%s" """.format(dirname))}
@@ -328,6 +396,7 @@ trait ShellOperations {
   
 }
 
+// ==========================================================================================
 
 
 /**
@@ -353,6 +422,9 @@ object SSHPassword {
   implicit def stringOpt2password(passopt: Option[String]) = new SSHPassword(passopt)
 }
 
+// ==========================================================================================
+
+
 /**
   * SSHOptions stores all ssh parameters
   * @author David Crosson
@@ -370,17 +442,20 @@ case class SSHOptions(
   retryCount: Int = 5,
   retryDelay: Int = 2000,
   sshUserDir: String = SP.userHome + FS + ".ssh",
-  charset: String = "ISO-8859-15")
+  charset: String = "ISO-8859-15",
+  noneCipher:Boolean = true
+)
 
   
   
-  
+// ==========================================================================================
+
   
 /**
   * SSH object factories
   * @author David Crosson
   */
-object SSH extends SSHAutoClose {
+object SSH  {
 
   /**
     * Executes the given code then closes the new ssh associated session. 
@@ -399,7 +474,7 @@ object SSH extends SSHAutoClose {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withssh: (SSH) => T): T = usingSSH(new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))) {
+    timeout: Int = 300000)(withssh: (SSH) => T): T = using(new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))) {
     withssh(_)
   }
   /**
@@ -408,7 +483,7 @@ object SSH extends SSHAutoClose {
     * @param withssh code bloc to execute
     * @return "withssh" returns type
     */
-  def once[T](options: SSHOptions)(withssh: (SSH) => T) = usingSSH(new SSH(options)) {
+  def once[T](options: SSHOptions)(withssh: (SSH) => T) = using(new SSH(options)) {
     withssh(_)
   }
   /**
@@ -418,7 +493,7 @@ object SSH extends SSHAutoClose {
     * @return "withssh" returns type
     */
   def once[T](someOptions: Option[SSHOptions])(withssh: (SSH) => Option[T]) = someOptions map { options =>
-    usingSSH(new SSH(options)) {
+    using(new SSH(options)) {
       withssh(_)
     }
   }
@@ -448,7 +523,7 @@ object SSH extends SSHAutoClose {
     * @param withsh code bloc to execute
     * @return "withssh" returns type
     */
-  def shell[T](options: SSHOptions)(withsh: (SSHShell) => T): T = usingSSH(new SSH(options)) { ssh =>
+  def shell[T](options: SSHOptions)(withsh: (SSHShell) => T): T = using(new SSH(options)) { ssh =>
     ssh.shell { sh => withsh(sh) }
   }
   /**
@@ -484,7 +559,7 @@ object SSH extends SSHAutoClose {
     * @param withftp code bloc to execute
     * @return "withftp" returns type
     */
-  def ftp[T](options: SSHOptions)(withftp: (SSHFtp) => T): T = usingSSH(new SSH(options)) { ssh =>
+  def ftp[T](options: SSHOptions)(withftp: (SSHFtp) => T): T = using(new SSH(options)) { ssh =>
     ssh.ftp { ftp => withftp(ftp) }
   }
   
@@ -521,7 +596,7 @@ object SSH extends SSHAutoClose {
     * @param withshftp code bloc to execute
     * @return "withshftp" returns type
     */
-  def shellAndFtp[T](options: SSHOptions)(withshftp: (SSHShell, SSHFtp) => T): T = usingSSH(new SSH(options)) { ssh =>
+  def shellAndFtp[T](options: SSHOptions)(withshftp: (SSHShell, SSHFtp) => T): T = using(new SSH(options)) { ssh =>
     ssh.shell { sh => ssh.ftp { ftp => withshftp(sh, ftp) } }
   }
   /**
@@ -565,6 +640,12 @@ object SSH extends SSHAutoClose {
     */
   def apply(someOptions: Option[SSHOptions]): Option[SSH] = someOptions map { new SSH(_) }
 
+  
+  protected def using[T <: { def close() }, R](resource: T)(block: T => R) = {
+    try block(resource)
+    finally resource.close
+  }
+
 }
 
 
@@ -577,7 +658,7 @@ object SSH extends SSHAutoClose {
   * SSH class. This class is the main entry point to the API
   * @author David Crosson
   */
-class SSH(val options: SSHOptions) extends SSHAutoClose with ShellOperations {
+class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperations {
   private implicit val ssh = this
   private val jsch = new JSch
   val jschsession: Session = {
@@ -589,14 +670,25 @@ class SSH(val options: SSHOptions) extends SSHAutoClose with ShellOperations {
     ses.setTimeout(options.timeout.toInt)  // Socket timeout
     ses setUserInfo SSHUserInfo(options.password.password, options.passphrase.password)
     ses.connect(options.connectTimeout.toInt)
+    if (ssh.options.noneCipher) {
+      /* Default : jsch 0.1.48 (2012-06-26)
+		cipher.s2c=aes128-ctr,aes128-cbc,3des-ctr,3des-cbc,blowfish-cbc,aes192-cbc,aes256-cbc
+		cipher.c2s=aes128-ctr,aes128-cbc,3des-ctr,3des-cbc,blowfish-cbc,aes192-cbc,aes256-cbc
+       */
+      ses.setConfig("cipher.s2c", "none,aes128-cbc,3des-cbc,blowfish-cbc")
+      ses.setConfig("cipher.c2s", "none,aes128-cbc,3des-cbc,blowfish-cbc")
+      ses.rekey()
+    }
     ses
   }
 
   //def apply[T](proc: (SSH) => T) = proc(this)  => Removed because it doesn't deal with close...
 
-  def shell[T](proc: (SSHShell) => T) = usingSSH(new SSHShell) { proc(_) }
+  def shell[T](proc: (SSHShell) => T) = SSH.using(new SSHShell) { proc(_) }
 
-  def ftp[T](proc: (SSHFtp) => T) = usingSSH(new SSHFtp) { proc(_) }
+  def ftp[T](proc: (SSHFtp) => T) = SSH.using(new SSHFtp) { proc(_) }
+  
+  def scp[T](proc: (SSHScp) => T) = SSH.using(new SSHScp) { proc(_) }
 
   def noerr(data: Option[String]) {}
 
@@ -630,18 +722,39 @@ class SSH(val options: SSHOptions) extends SSHAutoClose with ShellOperations {
     sb.toString()
   }
 
-  def get(remoteFilename: String) = ssh.ftp { _ get remoteFilename }
-
-  def getBytes(remoteFilename: String) = ssh.ftp { _ getBytes remoteFilename }
-
-  def put(data: String, remoteFilename: String) = ssh.ftp { _ put (data, remoteFilename) }
-
-  def receive(remoteFilename: String, toLocalFilename: String) = ssh.ftp { _.receive(remoteFilename, toLocalFilename) }
-
-  def send(fromLocalFilename: String, remoteFilename: String) = ssh.ftp {
-    _.send(fromLocalFilename, remoteFilename)
+  
+  override def get(remoteFilename: String):Option[String] = {
+    //ssh.ftp { _ get remoteFilename }
+    ssh.scp { _ get remoteFilename }
   }
 
+  override def getBytes(remoteFilename: String):Option[Array[Byte]] = {
+    //ssh.ftp { _ getBytes remoteFilename }
+    ssh.scp { _ getBytes remoteFilename }
+  }
+  
+  override def receive(remoteFilename: String, toLocalFile: File) {
+    //ssh.ftp { _.receive(remoteFilename, toLocalFile) }
+    ssh.scp { _.receive(remoteFilename, toLocalFile) }
+  }  
+
+  override def put(data: String, remoteDestination: String) {
+    //ssh.ftp { _ put (data, remoteDestination) }        
+    ssh.scp { _ put (data, remoteDestination) }
+  }
+
+  override def putBytes(data: Array[Byte], remoteDestination: String) {
+    //ssh.ftp { _ putBytes (data, remoteDestination) }
+    ssh.scp { _ putBytes (data, remoteDestination) }
+  }
+
+  override def send(fromLocalFile: File, remoteDestination: String) {
+    //ssh.ftp {_.send(fromLocalFile, remoteDestination)}
+    ssh.scp {_.send(fromLocalFile, remoteDestination)}
+  }
+
+  
+  
   def newShell = new SSHShell
 
   def newSftp = new SSHFtp
@@ -652,9 +765,12 @@ class SSH(val options: SSHOptions) extends SSHAutoClose with ShellOperations {
 
 
 
+// ==========================================================================================
+
+
 class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => Any)(implicit ssh: SSH) {
 
-  private val (channel, stdout, stderr, stdin) = {
+  private val (channel, stdout, stderr, stdin) = {    
     val ch = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
     ch.setCommand(cmd.getBytes())
     val stdout = ch.getInputStream()
@@ -736,7 +852,231 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
 
 }
 
-class SSHFtp(implicit ssh: SSH) {
+// ==========================================================================================
+
+
+class SSHScp(implicit ssh: SSH) extends TransfertOperations {
+
+ override def get(remoteFilename: String):Option[String] = {
+    getBytes(remoteFilename).map(new String(_, ssh.options.charset))
+  }
+
+  override def getBytes(remoteFilename: String):Option[Array[Byte]] = {
+    var filesBuffer = Map.empty[String, ByteArrayOutputStream]
+    def filename2outputStream(filename:String) = {
+      val newout = new ByteArrayOutputStream()
+      filesBuffer += filename -> newout
+      newout
+    }
+    remoteFile2OutputStream(remoteFilename, filename2outputStream) match {
+      case 0 => None
+      case 1 => Some(filesBuffer.values.head.toByteArray)
+      case _ => throw new RuntimeException("Want one file, but several files were found ! (%s)".format(filesBuffer.keys.mkString(",")))
+    }
+  }
+
+  override def receive(remoteFilename: String, toLocalFile: File) {
+    def filename2outputStream(filename:String) = new FileOutputStream(toLocalFile)
+    remoteFile2OutputStream(remoteFilename, filename2outputStream) match {
+      case 0 => throw new RuntimeException("Remote file name '%s' not found".format(remoteFilename))
+      case 1 => // OK
+      case _ => throw new RuntimeException("Want one file, but several files were found for '%s'".format(remoteFilename))
+    }    
+  }
+  
+  override def put(data: String, remoteDestination: String) {
+    putBytes(data.getBytes(ssh.options.charset), remoteDestination)
+  }
+
+  
+  override def putBytes(data: Array[Byte], remoteDestination: String) {
+    val sz = data.length
+    val linput = new ByteArrayInputStream(data)
+    val parts = remoteDestination.split("/")
+    val rfilename  = parts.last
+    val rDirectory = if (parts.init.size==0) "." else parts.init.mkString("/")
+    
+    inputStream2remoteFile(linput, sz, rfilename, rDirectory)
+  }
+
+  override def send(fromLocalFile: File, remoteDestination: String) {
+    val sz = fromLocalFile.length
+    val linput = new FileInputStream(fromLocalFile)
+    val parts = remoteDestination.split("/",-1)
+    val rfilename  = if (parts.last.length==0) fromLocalFile.getName else parts.last
+    val rDirectory = if (parts.init.size==0) "." else parts.init.mkString("/") 
+
+    inputStream2remoteFile(linput, sz, rfilename, rDirectory)
+  }
+
+  
+  
+  /**
+   * upload a local input stream to a remote destination
+   * @param localinput the input stream from which we read data
+   * @param datasize amount of data to send (in bytes)
+   * @param remoteFilename remote file name to use (just a filename, not a path, shouln't contain any path separator)
+   * @param remoteDirectory remote destination directory for our file
+   */
+  
+  def inputStream2remoteFile(
+      localinput: InputStream,
+      datasize:Long,
+      remoteFilename:String,
+      remoteDirectory:String) {
+    val ch = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
+    try {
+      ch.setCommand("""scp -p -t "%s"""".format(remoteDirectory))
+      val sin = new BufferedInputStream(ch.getInputStream())
+      val sout = ch.getOutputStream()
+      ch.connect(ssh.options.connectTimeout.toInt)
+    
+      checkAck(sin)
+      
+      // send "C0644 filesize filename", where filename should not include '/'
+      //println("******"+remoteFilename+" "+remoteDirectory)
+      val command = "C0644 %d %s\n".format(datasize, remoteFilename) // TODO take into account remote file rights
+      sout.write(command.getBytes("US-ASCII"))
+      sout.flush()
+      
+      checkAck(sin)
+
+      val bis = new BufferedInputStream(localinput)
+      /*
+      val chk = {
+        var readCount=0L
+        (x:Int) => {
+          readCount+=1
+          readCount <= datasize & x >= 0
+        }
+      }
+      if (datasize>0) Stream.continually(bis.read()).takeWhile(chk(_)).foreach(sout.write(_))
+      */
+      var writtenBytes=0
+      while (writtenBytes < datasize) {
+         val c = bis.read()
+         if (c>=0) {
+           sout.write(c)
+           writtenBytes+=1
+         }
+      }
+      bis.close()
+      
+      // send '\0'
+      sout.write(Array[Byte](0x00))
+      sout.flush()
+      
+      checkAck(sin)
+      
+    } finally {
+      if (ch.isConnected) ch.disconnect
+    }
+  }
+  
+ /**
+   * lookup for remote files, for each found file send the content to 
+   * an OutputStream created using the specified builder
+   * @param remoteFilenameMask file name or file mask
+   * @return number of found files 
+   */
+  
+  def remoteFile2OutputStream(
+      remoteFilenameMask:String,
+      outputStreamBuilder:(String)=>OutputStream):Int = {
+    val ch = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
+    try {
+      ch.setCommand("""scp -f "%s"""".format(remoteFilenameMask))
+      val sin = new BufferedInputStream(ch.getInputStream())
+      val sout = ch.getOutputStream()
+      ch.connect(ssh.options.connectTimeout.toInt)
+      
+      sout.write(0)
+      sout.flush()
+      
+      var count=0
+      val buf = new StringBuilder() // Warning : Mutable state, take care
+      def bufAppend(x:Int) {buf.append(x.asInstanceOf[Char])}
+      def bufReset() {buf.setLength(0)}
+      def bufStr = buf.toString
+      
+      while(checkAck(sin)=='C') {
+        val fileRights = new Array[Byte](5)
+        sin.read(fileRights, 0, 5)
+
+        bufReset()
+        Stream.continually(sin.read()).takeWhile(_!=' ').foreach(bufAppend(_))
+        val fz = bufStr.toLong
+
+        bufReset()
+        Stream.continually(sin.read()).takeWhile(_!=0x0a).foreach(bufAppend(_))
+        val filename = bufStr
+
+        //println(remoteFilenameMask+ " " + count + " " + new String(fileRights)+ " '"+ filename + "' #" + fz)
+        
+        sout.write(0)
+        sout.flush()
+
+        val fos = new BufferedOutputStream(outputStreamBuilder(filename), 8192)
+        
+        /*
+        val chk = {
+          var readCount=0L
+          (x:Int) => {
+            readCount+=1
+            readCount <= fz && x >= 0
+          }
+        }
+        if (fz>0) Stream.continually(sin.read()).takeWhile(chk(_)).foreach(fos.write(_))
+        */
+        
+        var  writtenBytes=0L
+        while(writtenBytes<fz) {
+          val c=sin.read()
+          if (c>=0) {
+            fos.write(c)
+            writtenBytes+=1
+          }
+        }
+        
+        
+        fos.close
+        
+        count+=1
+        
+        checkAck(sin)
+        sout.write(0)
+        sout.flush()
+      }
+      
+      count
+    } finally {
+      if (ch.isConnected) ch.disconnect
+    }
+  }
+
+ 
+  
+  private def checkAck(in:InputStream):Int = {
+    def consumeMessage() = {
+      val sb = new StringBuffer()
+      Stream.continually(in.read())
+      .takeWhile(x => (x != '\n') && (x != -1))
+      .foreach(x => sb.append(x.asInstanceOf[Char]))
+    }
+    in.read() match {
+      case 1  => throw new RuntimeException("SSH transfert protocol error "+consumeMessage())
+      case 2  => throw new RuntimeException("SSH transfert protocol fatal error "+consumeMessage())
+      case x  => x
+    }
+  }
+  
+  def close() {}
+  
+}
+
+// ==========================================================================================
+
+class SSHFtp(implicit ssh: SSH) extends TransfertOperations {
   private val channel: ChannelSftp = {
     //jschftpchannel.connect(link.connectTimeout)
     val ch = ssh.jschsession.openChannel("sftp").asInstanceOf[ChannelSftp]
@@ -748,40 +1088,20 @@ class SSHFtp(implicit ssh: SSH) {
     channel.quit
     channel.disconnect
   }
-
-  def get(filename: String): Option[String] = {
+  
+  
+  override def get(filename: String): Option[String] = {
     try {
+      implicit val codec = new io.Codec(Charset.forName(ssh.options.charset))
       Some(new BufferedSource(channel.get(filename)).mkString)
     } catch {
       case e: SftpException if (e.id == 2) => None // File doesn't exist
       case e: IOException => None
     }
   }
-  def put(data: String, remoteFilename: String) {
-    channel.put(new ByteArrayInputStream(data.getBytes), remoteFilename)
-  }
-
-  def receive(remoteFilename: String, localFile: File) = {
-    try {
-      channel.get(remoteFilename, new FileOutputStream(localFile))
-    } catch {
-      case e: SftpException if (e.id == 2) => None // File doesn't exist
-      case e: IOException => None
-    }
-  }
-  def receive(remoteFilename: String, localFilename: String) = {
-    try {
-      channel.get(remoteFilename, new FileOutputStream(localFilename))
-    } catch {
-      case e: SftpException if (e.id == 2) => None // File doesn't exist
-      case e: IOException => None
-    }
-  }
-  def send(localFilename: String, remoteFilename: String) = {
-    channel.put(new FileInputStream(localFilename), remoteFilename)
-  }
-
-  def getBytes(filename: String): Option[Array[Byte]] = {
+  
+  
+  override def getBytes(filename: String): Option[Array[Byte]] = {
     try {
       Some(SSHTools.inputStream2ByteArray(channel.get(filename)))
     } catch {
@@ -790,10 +1110,32 @@ class SSHFtp(implicit ssh: SSH) {
     }
   }
 
+  override def receive(remoteFilename: String, localFile: File) {
+    try {
+      channel.get(remoteFilename, new FileOutputStream(localFile))
+    } catch {
+      case e: SftpException if (e.id == 2) => None // File doesn't exist
+      case e: IOException => None
+    }
+  }
+  
+  override def put(data: String, remoteFilename: String) {
+    channel.put(new ByteArrayInputStream(data.getBytes(ssh.options.charset)), remoteFilename)
+  }
+  
+  override def putBytes(data: Array[Byte], remoteFilename: String) {
+    channel.put(new ByteArrayInputStream(data), remoteFilename)
+  }
+  
+  override def send(localFile: File, remoteFilename: String) {
+    channel.put(new FileInputStream(localFile), remoteFilename)
+  }
+
 }
 
 
 
+// ==========================================================================================
 
 
 
@@ -928,9 +1270,8 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
   }
 
 }
+// ==========================================================================================
 
-
-// =============================================================================
 
 /* Attention
  * - L'option PasswordAuthentication doit être à "yes" sinon impossible de s'authentifier
@@ -947,7 +1288,7 @@ case class SSHUserInfo(password: Option[String] = None, passphrase: Option[Strin
   override def promptKeyboardInteractive(destination: String, name: String, instruction: String, prompt: Array[String], echo: Array[Boolean]): Array[String] = Array(getPassword())
 }
 
-// =============================================================================
+// ==========================================================================================
 
 object SSHTools {
   def md5sum(str:String):String = {
@@ -970,7 +1311,7 @@ object SSHTools {
     val fos = new ByteArrayOutputStream(65535)
     val bfos = new BufferedOutputStream(fos, 16384)
     val bis = new BufferedInputStream(input)
-    val buffer = new Array[Byte](1024)
+    val buffer = new Array[Byte](8192)
     try {
       Stream.continually(bis.read(buffer))
         .takeWhile(_ != -1)

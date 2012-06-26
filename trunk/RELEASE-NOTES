@@ -50,7 +50,11 @@ CAVEATS :
    [info]   + Bytes rate : 29,5Mb/s 500Mb in 16,9s for 500 files - byterates using SFTP (with none cipher) 
    [info]   + Bytes rate : 37,7Mb/s 500Mb in 13,3s for 500 files - byterates using SFTP (session reused) 
    [info]   + Bytes rate : 43,7Mb/s 500Mb in 11,4s for 500 files - byterates using SFTP (session reused, with none cipher) 
- - Code cleanup & Scaladocumenting 
+ - Code cleanup & Scaladocumenting
+ - SSH compression now supported
+ - For easier SSH Tunneling, new methods are now available :
+   + def remote2Local(rport:Int, lhost:String, lport:Int)
+   + def local2Remote(lport:Int, rhost:String, rport:Int) 
   
 ------------------------------------------------------------------
 0.8.0

@@ -443,7 +443,8 @@ case class SSHOptions(
   retryDelay: Int = 2000,
   sshUserDir: String = SP.userHome + FS + ".ssh",
   charset: String = "ISO-8859-15",
-  noneCipher:Boolean = true
+  noneCipher:Boolean = true,
+  compress:Option[Int]=None
 )
 
   
@@ -667,7 +668,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     if (idrsa.exists) jsch.addIdentity(idrsa.getAbsolutePath)
     if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
     val ses = jsch.getSession(options.username, options.host, options.port)
-    ses.setTimeout(options.timeout.toInt)  // Socket timeout
+    ses.setTimeout(options.timeout.toInt)  // Timeout for the ssh connection (unplug cable to simulate) 
     ses setUserInfo SSHUserInfo(options.password.password, options.passphrase.password)
     ses.connect(options.connectTimeout.toInt)
     if (ssh.options.noneCipher) {
@@ -679,10 +680,17 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
       ses.setConfig("cipher.c2s", "none,aes128-cbc,3des-cbc,blowfish-cbc")
       ses.rekey()
     }
+    if (ssh.options.compress.isDefined) {
+    	ses.setConfig("compression.s2c", "zlib@openssh.com,zlib,none");
+    	ses.setConfig("compression.c2s", "zlib@openssh.com,zlib,none");
+    	ses.setConfig("compression_level", ssh.options.compress.get.toString);
+    } else {
+    	ses.setConfig("compression.s2c", "none,zlib@openssh.com,zlib");
+    	ses.setConfig("compression.c2s", "none,zlib@openssh.com,zlib");      
+    	ses.setConfig("compression_level", "0");
+    }
     ses
   }
-
-  //def apply[T](proc: (SSH) => T) = proc(this)  => Removed because it doesn't deal with close...
 
   def shell[T](proc: (SSHShell) => T) = SSH.using(new SSHShell) { proc(_) }
 
@@ -753,6 +761,25 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     ssh.scp {_.send(fromLocalFile, remoteDestination)}
   }
 
+  /**
+   * Remote port -> local port
+   * @param rport
+   * @param lhost
+   * @param lport
+   */
+  def remote2Local(rport:Int, lhost:String, lport:Int) {
+    jschsession.setPortForwardingR(rport, lhost, lport)
+  }
+  
+  /**
+   * Local port -> Remote host with specified port
+   * @param lport
+   * @param rhost
+   * @param rport
+   */
+  def local2Remote(lport:Int, rhost:String, rport:Int) {
+    val aport = jschsession.setPortForwardingL(lport, rhost, rport);
+  }
   
   
   def newShell = new SSHShell

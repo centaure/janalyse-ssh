@@ -8,5 +8,6 @@ val numb=if (args.size>3) args(3) else ""
 val vmstatcmd="vmstat %s %s".format(freq, numb)
 
 jassh.SSH.once(host, user)  {
-  _.run(vmstatcmd, {l=> println(l getOrElse "")}).waitForEnd
+  //_.run(vmstatcmd, {l=> println(l getOrElse "")}).waitForEnd
+  _.run(vmstatcmd, _.foreach(println _)).waitForEnd
 }

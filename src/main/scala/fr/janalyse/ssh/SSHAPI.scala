@@ -762,23 +762,23 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
   }
 
   /**
-   * Remote port -> local port
-   * @param rport
-   * @param lhost
-   * @param lport
+   * Remote host/port => local port (client-side)
+   * @param lport remote host port will be mapped on this port on client side (bound to localhost)
+   * @param host  remote host (accessed through ssh server side)  
+   * @param hport remote port (on remote host) to bring back locally
    */
-  def remote2Local(rport:Int, lhost:String, lport:Int) {
-    jschsession.setPortForwardingR(rport, lhost, lport)
+  def remote2Local(lport:Int, host:String, hport:Int) {
+    jschsession.setPortForwardingL(lport, host, hport)
   }
   
   /**
-   * Local port -> Remote host with specified port
-   * @param lport
-   * @param rhost
-   * @param rport
+   * Local (client-side) host/port => Remote host with specified port
+   * @param rport the port to create on remote server (where the ssh server stands) to forward lhost/lport
+   * @param lhost local host (accessible from ssh client host) from which we'll forward a port 
+   * @param lport the port to foward
    */
-  def local2Remote(lport:Int, rhost:String, rport:Int) {
-    val aport = jschsession.setPortForwardingL(lport, rhost, rport);
+  def local2Remote(rport:Int, lhost:String, lport:Int) {
+    jschsession.setPortForwardingR(rport, lhost, lport);
   }
   
   

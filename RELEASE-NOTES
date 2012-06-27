@@ -18,6 +18,11 @@ CAVEATS :
      (The last one is the "best workaround", will work in all cases)
 
 ------------------------------------------------------------------
+0.9.2 INPG
+ - TODO : minor problem with script when invoking jajmx.SSH... or fr.janalyse.sh.SSH... without imports...
+   see helloworld script for example
+ 
+------------------------------------------------------------------
 0.9.1
  - SSH tunneling fix, cleanup, and scaladocumented
  - Intricated SSH tunneling test added (self intrication, to simplify test case)

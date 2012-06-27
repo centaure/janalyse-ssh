@@ -257,7 +257,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   //==========================================================================================================
-  test("file transfert performances (with content loaded in memory, no subchannel reused)") {
+  ignore("file transfert performances (with content loaded in memory)") {
     val testfile="test-transfert"
       
     def withSCP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
@@ -372,7 +372,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     // We simulate bouncing between 9 SSH hosts, using SSH tunnel intrication
     // A:22 -> B:22 -> C:22 -> D:22 -> E:22 -> F:22 -> G:22 -> H:22 -> I:22
     // All "foreign" hosts become directly accessible using new ssh local ports
-    // A->10022, B-> 10023, ... Z->10030, so now Z is direcly accessible !
+    // A->10022, B-> 10023, ... Z->10030, so now I (and all others) are direcly accessible from local ssh client host
     val intricatedPath = Iterable(
         Sub("localhost", 22,    "127.0.0.1", 22, 10022), // A 
         Sub("localhost", 10022, "127.0.0.1", 22, 10023), // B
@@ -401,8 +401,10 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     
     // Build the intricated tunnels and execute a ssh command on the farthest host (I)
     val result = intricate(intricatedPath) {ssh =>
-      ssh.executeAndTrim("Hello world")
+      ssh.executeAndTrim("echo 'Hello intricated world'")
     }
+    
+    result should equal("Hello intricated world")
   }
 }
 

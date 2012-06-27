@@ -257,7 +257,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   //==========================================================================================================
-  ignore("file transfert performances (with content loaded in memory, no subchannel reused)") {
+  test("file transfert performances (with content loaded in memory, no subchannel reused)") {
     val testfile="test-transfert"
       
     def withSCP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
@@ -356,12 +356,53 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("tunneling test local->remote") {
     SSH.once("localhost", "test", port=22) { ssh1 =>
-      ssh1.local2Remote(33033, "localhost", 22) // TODO - hmmmm param mismatch... check that
+      ssh1.local2Remote(33033, "localhost", 22)
       SSH.once("localhost", "test", port=33033) { ssh2 => 
         ssh2.executeAndTrim("echo 'works'") should equal("works")
       }
     }
   }
   
+  
+  //==========================================================================================================
+  test("tunneling test intricated tunnels") {
+    // From host/port, bring back locally remote fhost/fport to local host using tport. 
+    case class Sub(host:String, port:Int, fhost:String, fport:Int, tport:Int)
+    
+    // We simulate bouncing between 9 SSH hosts, using SSH tunnel intrication
+    // A:22 -> B:22 -> C:22 -> D:22 -> E:22 -> F:22 -> G:22 -> H:22 -> I:22
+    // All "foreign" hosts become directly accessible using new ssh local ports
+    // A->10022, B-> 10023, ... Z->10030, so now Z is direcly accessible !
+    val intricatedPath = Iterable(
+        Sub("localhost", 22,    "127.0.0.1", 22, 10022), // A 
+        Sub("localhost", 10022, "127.0.0.1", 22, 10023), // B
+        Sub("localhost", 10023, "127.0.0.1", 22, 10024), // C
+        Sub("localhost", 10024, "127.0.0.1", 22, 10025), // D
+        Sub("localhost", 10025, "127.0.0.1", 22, 10026), // E
+        Sub("localhost", 10026, "127.0.0.1", 22, 10027), // F
+        Sub("localhost", 10027, "127.0.0.1", 22, 10028), // G
+        Sub("localhost", 10028, "127.0.0.1", 22, 10029), // H
+        Sub("localhost", 10029, "127.0.0.1", 22, 10030)  // I
+        )
+        
+    def intricate[T](path:Iterable[Sub], curSSHPort:Int=22)(proc:(SSH)=>T):T = {
+      path.headOption match {
+        case Some(curSub) =>
+          SSH.once(curSub.host, "test", port=curSub.port) { ssh =>
+            ssh.remote2Local(curSub.tport, curSub.fhost, curSub.fport)
+            intricate(path.tail, curSub.tport)(proc)
+          }
+        case None => 
+          SSH.once("localhost", "test", port=curSSHPort) { ssh =>
+            proc(ssh)
+          }
+      }
+    }
+    
+    // Build the intricated tunnels and execute a ssh command on the farthest host (I)
+    val result = intricate(intricatedPath) {ssh =>
+      ssh.executeAndTrim("Hello world")
+    }
+  }
 }
 

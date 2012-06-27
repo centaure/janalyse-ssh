@@ -18,7 +18,10 @@ CAVEATS :
      (The last one is the "best workaround", will work in all cases)
 
 ------------------------------------------------------------------
-0.9.0 INPG
+0.9.1 INPG
+
+------------------------------------------------------------------
+0.9.0
  - now using sbt-assembly 0.8.1
  - now using scalatest 0.8
  - SSHCommand, SSHBatch methods ! renamed to §§

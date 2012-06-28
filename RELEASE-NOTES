@@ -30,7 +30,8 @@ CAVEATS :
    Now using GMT, "date -u '+%Y-%m-%d %H:%M:%S %Z'" in order to everything work well in all cases.
  - SSH.once(Option[SSHOptions]) fix linked to Option type result not at the right place
  - New test source file : ExternalSSHAPITest.scala => Testing the API from an external package 
- - Fixed : minor problem with script when invoking jajmx.SSH... or fr.janalyse.sh.SSH... without imports...
+ - TODO : minor problem with script when invoking jajmx.SSH... or fr.janalyse.sh.SSH... without imports...
+   see helloworld script for example
  
 ------------------------------------------------------------------
 0.9.1

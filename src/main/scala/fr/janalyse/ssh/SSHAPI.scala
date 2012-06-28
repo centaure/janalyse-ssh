@@ -313,8 +313,8 @@ trait ShellOperations {
    * @return The remote system current date as a java Date class instance
    */
   def date():Date = {
-    val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z")
-    val d = executeAndTrim("date '+%Y-%m-%d %H:%M:%S %z'")
+    val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z")
+    val d = executeAndTrim("date -u '+%Y-%m-%d %H:%M:%S %Z'")
     sdf.parse(d)
   }
   
@@ -484,7 +484,7 @@ object SSH  {
     * @param withssh code bloc to execute
     * @return "withssh" returns type
     */
-  def once[T](options: SSHOptions)(withssh: (SSH) => T) = using(new SSH(options)) {
+  def once[T](options: SSHOptions)(withssh: (SSH) => T):T = using(new SSH(options)) {
     withssh(_)
   }
   /**
@@ -493,7 +493,7 @@ object SSH  {
     * @param withssh code bloc to execute
     * @return "withssh" returns type
     */
-  def once[T](someOptions: Option[SSHOptions])(withssh: (SSH) => Option[T]) = someOptions map { options =>
+  def once[T](someOptions: Option[SSHOptions])(withssh: (SSH) => T):Option[T] = someOptions map { options =>
     using(new SSH(options)) {
       withssh(_)
     }

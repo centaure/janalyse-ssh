@@ -12,8 +12,8 @@ TODO :
 CAVEATS :
   => ssh persisted shell session operations must be executed within the same thread, 
      do not span a persisted shell session across several threads => it may generate exception
-      
-     So be careful when using REPL with default config, as each "evaluation" is done with a new thread !
+
+     So be careful when using REPL with default config, as each "evaluation" is done within a new thread !
      Workaround : Start the interpreter (REPL) with the "-Yrepl-sync" option.
      
      No problem with SBT as a scala console started from SBT will execute all its entries in the same thread !

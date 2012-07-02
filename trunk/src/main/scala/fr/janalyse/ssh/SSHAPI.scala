@@ -675,7 +675,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
     val ses = jsch.getSession(options.username, options.host, options.port)
     ses.setTimeout(options.timeout.toInt)  // Timeout for the ssh connection (unplug cable to simulate) 
-    ses setUserInfo SSHUserInfo(options.password.password, options.passphrase.password)
+    ses.setUserInfo(SSHUserInfo(options.password.password, options.passphrase.password))
     ses.connect(options.connectTimeout.toInt)
     if (ssh.options.noneCipher) {
       /* Default : jsch 0.1.48 (2012-06-26)

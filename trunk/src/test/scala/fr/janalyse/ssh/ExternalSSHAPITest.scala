@@ -14,6 +14,8 @@ class ExternalSSHAPITest extends FunSuite with ShouldMatchers {
     
   val sshopts = jassh.SSHOptions(host, user, password = pass)
 
+  import jassh._
+
   test("Hello 1") {
     jassh.SSH.once(sshopts) { _.executeAndTrim("echo 'hello'") } should equal("hello")
   }

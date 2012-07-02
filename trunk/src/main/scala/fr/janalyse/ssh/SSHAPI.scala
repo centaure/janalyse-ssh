@@ -418,8 +418,14 @@ object NoPassword extends SSHPassword(None)
   * @author David Crosson
   */
 object SSHPassword {
-  implicit def string2password(pass: String) = new SSHPassword(Some(pass))
-  implicit def stringOpt2password(passopt: Option[String]) = new SSHPassword(passopt)
+  implicit def string2password(pass: String) = pass match {
+    case "" => NoPassword
+    case password => SSHPassword(Some(pass))
+  }
+  implicit def stringOpt2password(passopt: Option[String]) = passopt match {
+    case Some(password) => string2password(password)
+    case None => NoPassword
+  }
 }
 
 // ==========================================================================================

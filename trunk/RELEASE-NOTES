@@ -29,6 +29,7 @@ CAVEATS :
  - TODO Still to fix : minor problem with script when invoking jajmx.SSH... or fr.janalyse.sh.SSH... 
    (without global import such as import jassh._) => implicit conversions problem...
  - temporary test fix (ExternalSSHAPITest.scala)
+ - small fix about how private key passphrase is taken into account (when pub-key auth is used)
 
 ------------------------------------------------------------------
 0.9.2

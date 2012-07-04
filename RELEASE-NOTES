@@ -29,6 +29,7 @@ CAVEATS :
  - fixes relatives to implicit conversion to SSHCommand and SSHBatch
  - For SSHBatch : execute, executeAndTrim, executeAndTrimSplit
      renamed to : executeAll, executeAllAndTrim, executeAllAndTrimSplit
+ - Using Iterable instead of List
  - external (package) usage tests completed (ExternalSSHAPITest.scala)
  - small fix about how private key passphrase is taken into account (when pub-key auth is used)
 

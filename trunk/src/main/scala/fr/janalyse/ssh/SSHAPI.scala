@@ -66,8 +66,8 @@ object SSHCommand {
   * SSHBatch class models ssh batch (in fact a list of commands)  
   * @author David Crosson
   */
-class SSHBatch(val cmdList: List[String]) {
-  def §§(implicit ssh: SSH) = ssh.shell { _ execute this }
+class SSHBatch(val cmdList: Iterable[String]) {
+  def §§(implicit ssh: SSH) = ssh.shell { _ executeAll this }
 }
 
 /**
@@ -75,7 +75,7 @@ class SSHBatch(val cmdList: List[String]) {
   * @author David Crosson
   */
 object SSHBatch {
-  implicit def stringListToBatchList(cmdList: List[String]) = new SSHBatch(cmdList)
+  implicit def stringListToBatchList(cmdList: Iterable[String]) = new SSHBatch(cmdList)
 }
 
 
@@ -202,7 +202,7 @@ trait ShellOperations {
    * @param cmds batch to be executed
    * @return result string collection
    */
-  def execute(cmds: SSHBatch):List[String]
+  def executeAll(cmds: SSHBatch):Iterable[String]
 
   
   /**
@@ -224,21 +224,21 @@ trait ShellOperations {
    * @param cmd command to be executed
    * @return result string
    */
-  def executeAndTrimSplit(cmd: SSHCommand): Array[String] = execute(cmd).trim().split("\r?\n")
+  def executeAndTrimSplit(cmd: SSHCommand): Iterable[String] = execute(cmd).trim().split("\r?\n")
   
   /**
    * Execute the current batch (list of commands) and return the result as a string collection
    * @param cmds batch to be executed
    * @return result trimmed string collection
    */
-  def executeAndTrim(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim }
+  def executeAllAndTrim(cmds: SSHBatch) = executeAll(cmds.cmdList) map { _.trim }
 
   /**
    * Execute the current batch (list of commands) and return the result as a string collection
    * @param cmds batch to be executed
    * @return result trimmed splitted string collection
    */
-  def executeAndTrimSplit(cmds: SSHBatch) = execute(cmds.cmdList) map { _.trim.split("\r?\n") }
+  def executeAllAndTrimSplit(cmds: SSHBatch) = executeAll(cmds.cmdList) map { _.trim.split("\r?\n") }
   
   /**
    * Remote file size in bytes
@@ -713,7 +713,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     execOnce(cmd) // Using SSHExec channel (better performances)
 
     
-  override def execute(cmds: SSHBatch) = shell { _ execute cmds.cmdList }
+  override def executeAll(cmds: SSHBatch) = shell { _ executeAll cmds }
 
 
   def execOnceAndTrim(scmd: SSHCommand) = execOnce(scmd).trim()
@@ -1209,7 +1209,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     fromServer.getResponse()
   }
 
-  override def execute(cmds: SSHBatch):List[String] =  cmds.cmdList.map(execute(_))
+  override def executeAll(cmds: SSHBatch):Iterable[String] =  cmds.cmdList.map(execute(_))
 
   /*
   def execute[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {

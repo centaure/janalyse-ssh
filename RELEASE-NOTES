@@ -25,10 +25,11 @@ CAVEATS :
 
 ------------------------------------------------------------------
 0.9.3 INPG
- - minor fixes relatives to implicit conversions with SSHPassword
- - TODO Still to fix : minor problem with script when invoking jajmx.SSH... or fr.janalyse.sh.SSH... 
-   (without global import such as import jassh._) => implicit conversions problem...
- - temporary test fix (ExternalSSHAPITest.scala)
+ - fixes relatives to implicit conversions with SSHPassword
+ - fixes relatives to implicit conversion to SSHCommand and SSHBatch
+ - For SSHBatch : execute, executeAndTrim, executeAndTrimSplit
+     renamed to : executeAll, executeAllAndTrim, executeAllAndTrimSplit
+ - external (package) usage tests completed (ExternalSSHAPITest.scala)
  - small fix about how private key passphrase is taken into account (when pub-key auth is used)
 
 ------------------------------------------------------------------

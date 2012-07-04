@@ -25,6 +25,7 @@ CAVEATS :
 
 ------------------------------------------------------------------
 0.9.3 INPG
+ - now using sbt-assembly 0.8.3
  - fixes relatives to implicit conversions with SSHPassword
  - fixes relatives to implicit conversion to SSHCommand and SSHBatch
  - For SSHBatch : execute, executeAndTrim, executeAndTrimSplit

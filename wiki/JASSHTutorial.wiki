@@ -9,7 +9,7 @@ JASSH Scala SSH API tutorial. All examples described in this document can be dir
    * sbt console
  * download "jassh.jar" file, and start the console as follow :
    * wget http://code.google.com/p/janalyse-ssh/downloads/detail?name=jassh.jar
-   * java -jar target/jassh.jar -usejavacp
+   * java -jar target/jassh.jar -usejavacp -Yrepl-sync
 
 Besides that, you can also create your own scala scripts very simply, just create a dummy.scala script file as follow and make it executable (we assume that jassh.jar is in the current directory):
 {{{
@@ -54,6 +54,62 @@ scala> ssh.put("Hello World\nToo good", "hello.txt")
 scala> for(msg <- ssh.get("hello.txt") ) println(msg)
 Hello World
 Too good
+
+}}}
+
+Still using console mode, but now let's use method helpers :
+
+{{{
+$ java -jar jassh.jar -usejavacp -Yrepl-sync
+Welcome to Scala version 2.9.2 (Java HotSpot(TM) 64-Bit Server VM, Java 1.6.0_33).
+Type in expressions to have them evaluated.
+Type :help for more information.
+
+scala> import jassh._
+import jassh._
+
+scala> val ssh = SSH("localhost", "test", "testtest")
+ssh: fr.janalyse.ssh.SSH = fr.janalyse.ssh.SSH@2cf5006
+
+scala> val sh = ssh.newShell
+sh: fr.janalyse.ssh.SSHShell = fr.janalyse.ssh.SSHShell@3775ace6
+
+scala> import sh._
+import sh._
+
+scala> pwd
+res0: String = /home/test
+
+scala> cd("sshapitest-dummydir")
+
+scala> pwd
+res3: String = /home/test/sshapitest-dummydir
+
+scala> ls
+res4: Iterable[String] = WrappedArray("")
+
+scala> cd()
+
+scala> pwd
+res6: String = /home/test
+
+scala> ls
+res7: Iterable[String] = WrappedArray(HelloWorld.txt, authorized_keys, file.tst, heapdump-1906-Elive.hprof, hello.txt, sshapitest-dummydir, sshapitest.dummy, sshapittest.dummy, test-transfert, testme.txt)
+
+scala> uname
+res8: String = Linux
+
+scala> hostname
+res9: String = lanfeust
+
+scala> md5sum("HelloWorld.txt")
+res10: Option[String] = Some(ec245c490ec135c115d190165956c92b)
+
+scala> sha1sum("heapdump-1906-Elive.hprof")
+res11: Option[String] = Some(21f9fbab210a7314992114daf7421af90df8aaab)
+
+scala> fileSize("heapdump-1906-Elive.hprof")
+res12: Option[Long] = Some(597369928)
 
 }}}
 

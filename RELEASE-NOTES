@@ -25,7 +25,9 @@ CAVEATS :
 
 ------------------------------------------------------------------
 0.9.4 INPG
-
+ - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
+ - TODO : manage when sftp submodule is not available => throw the right exception 
+ 
 ------------------------------------------------------------------
 0.9.3
  - now using sbt-assembly 0.8.3

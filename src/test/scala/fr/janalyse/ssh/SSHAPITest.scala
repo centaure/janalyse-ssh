@@ -146,7 +146,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       
       val uname = ssh executeAndTrim "uname -a"
       val fsstatus = ssh execute "df -m"
-      val fmax = ssh get "/proc/sys/fs/file-max" // Warning SCP only work with regular file
+      val fmax = ssh get "/etc/lsb-release" // Warning SCP only work with regular file
       
       ssh.shell { sh => // For higher performances
         val hostname = sh.executeAndTrim("hostname")
@@ -405,6 +405,15 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
     
     result should equal("Hello intricated world")
+  }
+
+  //==========================================================================================================
+  test("SCP/SFTP and special system file") {
+    SSH.once(sshopts) { ssh =>
+      val r = ssh.get("/proc/cpuinfo")
+      r should not equal(None)
+      r.get should not equal("")
+    }
   }
 }
 

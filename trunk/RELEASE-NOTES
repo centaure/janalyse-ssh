@@ -26,7 +26,9 @@ CAVEATS :
 ------------------------------------------------------------------
 0.9.4 INPG
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
- - TODO : manage when sftp submodule is not available => throw the right exception 
+ - TODO : manage when sftp submodule is not available => throw the right exception
+ - TODO : Issue 1:	ssh keys reported by jendap
+ - rexec.scala example script added 
  
 ------------------------------------------------------------------
 0.9.3

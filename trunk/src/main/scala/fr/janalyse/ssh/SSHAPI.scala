@@ -448,10 +448,13 @@ case class SSHOptions(
   retryCount: Int = 5,
   retryDelay: Int = 2000,
   sshUserDir: String = SP.userHome + FS + ".ssh",
+  sshKeyFile: Option[String]=None, // if None, will look for default names. (sshUserDir is used) 
   charset: String = "ISO-8859-15",
   noneCipher:Boolean = true,
   compress:Option[Int]=None
-)
+) {
+  val keyfiles2lookup = sshKeyFile++List("id_rsa", "id_dsa")  // ssh key search order (from sshUserDir) 
+}
 
   
   
@@ -668,11 +671,13 @@ object SSH  {
 class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperations {
   private implicit val ssh = this
   private val jsch = new JSch
-  val jschsession: Session = {
-    val idrsa = new File(options.sshUserDir, "id_rsa")
-    val iddsa = new File(options.sshUserDir, "id_dsa")
-    if (idrsa.exists) jsch.addIdentity(idrsa.getAbsolutePath)
-    if (iddsa.exists) jsch.addIdentity(iddsa.getAbsolutePath)
+  val jschsession: Session = { 
+    options.keyfiles2lookup
+       .toStream
+       .map(new File(options.sshUserDir, _))
+       .filter(_.exists)
+       .foreach(f => jsch.addIdentity(f.getAbsolutePath))
+
     val ses = jsch.getSession(options.username, options.host, options.port)
     ses.setTimeout(options.timeout.toInt)  // Timeout for the ssh connection (unplug cable to simulate) 
     ses.setUserInfo(SSHUserInfo(options.password.password, options.passphrase.password))

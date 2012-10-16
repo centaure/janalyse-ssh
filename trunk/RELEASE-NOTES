@@ -30,6 +30,8 @@ CAVEATS :
  - rexec.scala example script added 
  - Issue 1 Fixed: ssh keys reported by jendap
    SSHOptions new parameter : sshKeyFile: Option[String]=None, // if None, will look for default names. (sshUserDir is used)
+ - new helper methods : 
+   => ps : to get the list of running processes
    
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception

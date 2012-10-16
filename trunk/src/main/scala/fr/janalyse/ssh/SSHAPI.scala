@@ -374,7 +374,40 @@ trait ShellOperations {
    */
   def isExecutable(filename:String):Boolean = testFile("-x", filename)
 
+  
+  /**
+   * 
+   */
+  def options:SSHOptions
+  
+  /**
+   * 
+   * 
+   */
+  //ps -eo pid,ppid,user,group,thcount,rss,%cpu,etime,cputime,cmd
+  case class Process(pid:Int, ppid:Int, user:String, cmdline:String) {
+    private val tokens = cmdline.split("""\s+""").toList filter { _.size > 0}
+    val cmd  = tokens.head
+    val args = tokens.tail.toList
+  }
 
+  def ps():List[Process] = {
+    val uname = executeAndTrim("uname")
+    val pscmd = uname match {
+      case "Linux" => "ps -eo pid,ppid,user,cmd | grep -v grep"
+      case "AIX"|"SunOS"   => "ps -eo pid,ppid,ruser,args | grep -v grep"
+      case _       => "ps -eo pid,ppid,user,cmd | grep -v grep"
+    }
+    val numRE="""(\d+)"""r
+    val processes = executeAndTrimSplit(pscmd).toList.tail map {_ trim} flatMap { l:String =>
+      (l.split("""\s+""",4)) match {
+        case Array(numRE(pid), numRE(ppid), user, cmdline) => Process(pid.toInt, ppid.toInt, user, cmdline)::Nil
+        case notUnderstood => println("%s - %s - Process not recognized: %s".format(options.host, pscmd, notUnderstood.mkString(" "))); Nil
+      }
+    }
+    processes
+  }
+  
   /**
    * internal helper method
    */
@@ -1183,6 +1216,8 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
   val customPromptGiven = ssh.options.prompt.isDefined
   val prompt = ssh.options.prompt getOrElse defaultPrompt
 
+  val options = ssh.options
+  
   val (channel, toServer, fromServer) = {
     var ch: ChannelShell = ssh.jschsession.openChannel("shell").asInstanceOf[ChannelShell]
     ch.setPtyType("dumb")

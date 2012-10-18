@@ -294,7 +294,7 @@ trait ShellOperations {
    * Of course this requires a persistent shell session to be really useful...
    */
   def cd() {execute("cd")}
-  
+
   /**
    * Change current working directory to the specified directory
    * Of course this requires a persistent shell session to be really useful...
@@ -318,6 +318,20 @@ trait ShellOperations {
     sdf.parse(d)
   }
   
+  /**
+   * Get the content of a file
+   * @param filename get the content of this filename
+   * @return file content
+   */
+  def cat(filename:String) =  execute("cat %s".format(filename))
+  
+  /**
+   * Get contents of a list of files
+   * @param filenames get the content of this list of filenames
+   * @return files contents concatenation
+   */
+  def cat(filenames:List[String]) =  execute("cat %s".format(filenames.mkString(" ")))
+
   /**
    * Find file modified after the given date (Warning, minimal resolution = 1 minute) 
    * @param root Search for file from this root directory

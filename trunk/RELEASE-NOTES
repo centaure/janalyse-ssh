@@ -11,7 +11,7 @@ TODO :
 
 CAVEATS :
   => ssh persisted shell session operations must be executed within the same thread, 
-     do not span a persisted shell session across several threads => it may generate exception
+     do not span a persisted shell session across several threads => it may generates exception
 
      So be careful when using REPL with default config, as each "evaluation" is done within a new thread !
      Workaround : Start the interpreter (REPL) with the "-Yrepl-sync" option.
@@ -22,9 +22,13 @@ CAVEATS :
   => SCP operations can't retrieve special file such as /proc/cpuinfo, because their size are not known !
      Workarounds : use SFTP  OR  use a command such as "cat /proc/cpuinfo". 
      (The last one is the "best workaround", will work in all cases)
+     
+  => Be aware of the fact that SFTP SSH Channel may be not available, so prefer SCP to maximize scripts / code portability
+     from one system to an other.
+     Looks like linux SSHD comes with SFTP by default, but not AIX.
 
 ------------------------------------------------------------------
-0.9.4 INPG
+0.9.4 INPG (2012-10-18)
  - now using sbt 0.12
  - now using sbteclipse 2.1.0
  - rexec.scala example script added 
@@ -32,6 +36,7 @@ CAVEATS :
    SSHOptions new parameter : sshKeyFile: Option[String]=None, // if None, will look for default names. (sshUserDir is used)
  - new helper methods : 
    => ps : to get the list of running processes
+   => cat file : to get the content of a file through the cat command. Useful when trying to get special linux file content 
    
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception

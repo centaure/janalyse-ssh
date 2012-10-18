@@ -408,7 +408,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   //==========================================================================================================
-  test("SCP/SFTP and special system file") {
+  ignore("SCP/SFTP and special system file") {
     SSH.once(sshopts) { ssh =>
       val r = ssh.get("/proc/cpuinfo")
       r should not equal(None)

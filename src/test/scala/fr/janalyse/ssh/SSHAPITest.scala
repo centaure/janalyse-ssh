@@ -408,6 +408,15 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
 
   //==========================================================================================================
+  test("remote ssh sessions (ssh tunneling ssh") {
+    val rssh = SSH(sshopts).remote(sshopts)
+    rssh.options.port should not equals(22)
+    
+    rssh.executeAndTrim("echo 'hello'") should equals ("hello")
+    
+    rssh.close
+  }
+  //==========================================================================================================
   ignore("SCP/SFTP and special system file") {
     SSH.once(sshopts) { ssh =>
       val r = ssh.get("/proc/cpuinfo")

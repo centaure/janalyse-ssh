@@ -825,10 +825,21 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
    * @param host  remote host (accessed through ssh server side)  
    * @param hport remote port (on remote host) to bring back locally
    */
-  def remote2Local(lport:Int, host:String, hport:Int) {
+  def remote2Local(lport:Int, host:String, hport:Int) = {
     jschsession.setPortForwardingL(lport, host, hport)
   }
-  
+
+  /**
+   * Remote host/port => local port (client-side automatically chosen)
+   * @param lport remote host port will be mapped on this port on client side (bound to localhost)
+   * @param host  remote host (accessed through ssh server side)  
+   * @param hport remote port (on remote host) to bring back locally
+   * @return chosen local listening port
+   */
+  def remote2Local(host:String, hport:Int) = {
+    jschsession.setPortForwardingL(0, host, hport)
+  }
+
   /**
    * Local (client-side) host/port => Remote host with specified port
    * @param rport the port to create on remote server (where the ssh server stands) to forward lhost/lport
@@ -839,11 +850,50 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     jschsession.setPortForwardingR(rport, lhost, lport);
   }
   
+  /**
+   * Get access to a remote SSH through current SSH session
+   * @param options ssh options
+   * @return SSH session
+   */
+  def remote(remoteOptions:SSHOptions):SSH = {
+    val chosenPort:Int = remote2Local(remoteOptions.host, remoteOptions.port)
+    val localOptions = remoteOptions.copy(host="127.0.0.1", port=chosenPort)
+    new SSH(localOptions)
+  }
   
+  /**
+   * Get access to a remote SSH through current SSH session
+    * @param host ip address or hostname
+    * @param username user name
+    * @param password user password (if ommitted, will try public key authentication)
+    * @param passphrase keys passphrase (if required)
+    * @param port remote ssh port
+    * @param timeout timeout
+    * @return SSH session
+    */
+  def remote(
+    host: String = "localhost",
+    username: String = util.Properties.userName,
+    password: SSHPassword = NoPassword,
+    passphrase: SSHPassword = NoPassword,
+    port: Int = 22,
+    timeout: Int = 300000):SSH = remote(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
+
+    
+  /**
+   * returns a new shell for current SSH session, you must manage close operation by your self
+   */
   def newShell = new SSHShell
 
+  /**
+   * returns a new ftp for current SSH session, you must manage close operation by your self
+   * @return sftp instance
+   */
   def newSftp = new SSHFtp
 
+  /**
+   * close current ssh session
+   */
   def close() { jschsession.disconnect }
 
 }

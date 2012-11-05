@@ -31,7 +31,9 @@ CAVEATS :
 0.9.5 INPG (2012-11-05)
  - JSCH updated to 0.1.49
  - now using sbt 0.12.1
+ - now using scalatest 2.0-M4
  - now using sbteclipse 2.1.0
+ - add support for scala 2.10.0-RC1
  - rexec.scala example script added 
  - Issue 1 Fixed: ssh keys reported by jendap
    SSHOptions new parameter : sshKeyFile: Option[String]=None, // if None, will look for default names. (sshUserDir is used)

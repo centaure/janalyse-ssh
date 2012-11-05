@@ -412,7 +412,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     val rssh = SSH(sshopts).remote(sshopts)
     rssh.options.port should not equals(22)
     
-    rssh.executeAndTrim("echo 'hello'") should equals ("hello")
+    rssh.executeAndTrim("echo 'hello'") should equal ("hello")
     
     rssh.close
   }

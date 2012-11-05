@@ -12,7 +12,7 @@ class ExternalSSHAPITest extends FunSuite with ShouldMatchers {
   val user="test"
   val pass="testtest"
     
-  val sshopts = jassh.SSHOptions(host, user, password = pass)
+  val sshopts = jassh.SSHOptions(username=user, password = pass)(host)
 
   // -------------------------------------------------------------------
   // -- With a global import

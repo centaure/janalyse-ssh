@@ -28,7 +28,8 @@ CAVEATS :
      Looks like linux SSHD comes with SFTP by default, but not AIX.
 
 ------------------------------------------------------------------
-0.9.4 INPG (2012-10-18)
+0.9.5 INPG (2012-11-05)
+ - JSCH updated to 0.1.49
  - now using sbt 0.12.1
  - now using sbteclipse 2.1.0
  - rexec.scala example script added 
@@ -42,6 +43,9 @@ CAVEATS :
  - get access to a remote SSH through current SSH session
    SSH.remote(options:SSHOptions):SSH
    SSH.remote(remotePort:Int, options:SSHOptions)
+ - SSHOptions API CHANGE, a second parameter list have been added, host parameter moved from first one to the second one
+   GOAL : Allow simple creation of partial function with SSHOptions, to share ssh options between several connections...
+
    
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception

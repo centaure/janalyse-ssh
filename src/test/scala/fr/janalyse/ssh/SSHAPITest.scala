@@ -21,7 +21,6 @@ import org.scalatest.FunSuite
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.junit.JUnitRunner
 import scala.io.Source
-import actors.Actor._
 import scala.util.Properties
 import java.io.File
 import java.io.IOException
@@ -36,7 +35,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     (end - begin, result)
   }
 
-  val sshopts = SSHOptions("127.0.0.1", "test", password="testtest")
+  val sshopts = SSHOptions("test", password="testtest")("127.0.0.1")
   //val sshopts = SSHOptions("192.168.2.238", "test", password=Some("testtest"), port=22022)
   //val sshopts = SSHOptions("www.janalyse.fr")
   
@@ -171,7 +170,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     
     // Configuring parallelism
     // Scala 2.9
-    collection.parallel.ForkJoinTasks.defaultForkJoinPool.setParallelism(6)
+    //collection.parallel.ForkJoinTasks.defaultForkJoinPool.setParallelism(6)
     // Scala 2.10
     //sshs.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(6))
     
@@ -209,7 +208,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
   //==========================================================================================================
   ignore("timeout tests") { // TODO : not working, make timeout possible with too long running remote command; (^C is already possible)!!
-    val opts = SSHOptions(host="localhost", username="test", timeout=5000, connectTimeout=2000)
+    val opts = SSHOptions(username="test", timeout=5000, connectTimeout=2000)("localhost")
     SSH.once(opts) {ssh =>
       ssh.executeAndTrim("sleep 4; echo 'ok'") should equal("ok")
       intercept[IOException] {
@@ -287,8 +286,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       info("Bytes rate : %.1fMb/s %dMb in %.1fs for %d files - %s".format(howmany*sizeKb*1000L/d/1024d, sizeKb*howmany/1024, d/1000d, howmany, comments))      
     }
     
-    val withCipher=SSHOptions("localhost", "test", noneCipher=false)
-    val noneCipher=SSHOptions("localhost", "test", noneCipher=true)
+    val withCipher=SSHOptions("test", noneCipher=false)("localhost")
+    val noneCipher=SSHOptions("test", noneCipher=true)("localhost")
     
     SSH.once(withCipher) (toTest(withSCP, 5, 100*1024, "byterates using SCP"))
     SSH.once(noneCipher) (toTest(withSCP, 5, 100*1024, "byterates using SCP (with none cipher)"))
@@ -336,8 +335,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       info("Bytes rate : %.1fMb/s %dMb in %.1fs for %d files - %s".format(howmany*sizeKb*1000L/d/1024d, sizeKb*howmany/1024, d/1000d, howmany, comments))      
     }
     
-    val withCompress = SSHOptions("localhost", "test", compress=None)
-    val noCompress = SSHOptions("localhost", "test", compress=Some(9))
+    val withCompress = SSHOptions("test", compress=None)("localhost")
+    val noCompress = SSHOptions("test", compress=Some(9))("localhost")
     
     SSH.once(withCompress) (toTest(withReusedSFTP, 1, 100*1024, "byterates using SFTP (max compression)"))
     SSH.once(noCompress) (toTest(withReusedSFTP, 1, 100*1024, "byterates using SFTP (no compression)"))
@@ -424,5 +423,14 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       r.get should not equal("")
     }
   }
+  
+    //==========================================================================================================
+  test("sharing SSH options...") {
+    val common = SSHOptions(username="test", password="testtest")_
+    
+    SSH.once(common("localhost")) { _.executeAndTrim("echo 'hello'") should equal ("hello") }
+    
+  }
+
 }
 

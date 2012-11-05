@@ -17,8 +17,6 @@
 package fr.janalyse.ssh
 
 import com.jcraft.jsch._
-import scala.actors._
-import scala.actors.Actor._
 import scala.io.BufferedSource
 import java.util.logging._
 import java.io._
@@ -483,7 +481,6 @@ object SSHPassword {
   * @author David Crosson
   */
 case class SSHOptions(
-  host: String = "localhost",
   username: String = util.Properties.userName,
   password: SSHPassword = NoPassword,
   passphrase: SSHPassword = NoPassword,
@@ -499,6 +496,8 @@ case class SSHOptions(
   charset: String = "ISO-8859-15",
   noneCipher:Boolean = true,
   compress:Option[Int]=None
+)(
+  val host: String = "localhost"
 ) {
   val keyfiles2lookup = sshKeyFile++List("id_rsa", "id_dsa")  // ssh key search order (from sshUserDir) 
 }
@@ -531,7 +530,7 @@ object SSH  {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withssh: (SSH) => T): T = using(new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))) {
+    timeout: Int = 300000)(withssh: (SSH) => T): T = using(new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))) {
     withssh(_)
   }
   /**
@@ -572,7 +571,7 @@ object SSH  {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withsh)
+    timeout: Int = 300000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))(withsh)
 
   /**
     * Executes the given code then closes the new ssh shell associated session. 
@@ -608,7 +607,7 @@ object SSH  {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withftp)
+    timeout: Int = 300000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))(withftp)
 
   /**
     * Executes the given code then closes the new sftp associated session. 
@@ -645,7 +644,7 @@ object SSH  {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withshftp)
+    timeout: Int = 300000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host=host))(withshftp)
 
   /**
     * Executes the given code then closes the new ssh shell and sftp associated sessions. 
@@ -681,7 +680,7 @@ object SSH  {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000) = new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
+    timeout: Int = 300000) = new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host=host))
 
   /**
     * Creates a new SSH session, it is up to the user to manage close 
@@ -857,7 +856,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
    */
   def remote(remoteOptions:SSHOptions):SSH = {
     val chosenPort:Int = remote2Local(remoteOptions.host, remoteOptions.port)
-    val localOptions = remoteOptions.copy(host="127.0.0.1", port=chosenPort)
+    val localOptions = remoteOptions.copy(port=chosenPort)(host="127.0.0.1")
     new SSH(localOptions)
   }
   
@@ -877,7 +876,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000):SSH = remote(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
+    timeout: Int = 300000):SSH = remote(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host=host))
 
     
   /**

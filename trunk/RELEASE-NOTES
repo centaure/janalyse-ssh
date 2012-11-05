@@ -29,7 +29,7 @@ CAVEATS :
 
 ------------------------------------------------------------------
 0.9.4 INPG (2012-10-18)
- - now using sbt 0.12
+ - now using sbt 0.12.1
  - now using sbteclipse 2.1.0
  - rexec.scala example script added 
  - Issue 1 Fixed: ssh keys reported by jendap

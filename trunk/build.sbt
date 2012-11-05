@@ -1,18 +1,22 @@
 name := "janalyse-ssh"
 
-version := "0.9.4"
+version := "0.9.5-b1"
 
 organization :="fr.janalyse"
 
 organizationHomepage := Some(new URL("http://www.janalyse.fr"))
 
-scalaVersion := "2.9.2"
+scalaVersion := "2.10.0-RC1"
 
-crossScalaVersions := Seq("2.9.1", "2.9.2", "2.10.0-RC1")
+crossScalaVersions := Seq("2.9.1", "2.9.1-1", "2.9.2", "2.10.0-RC1")
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "1.8" % "test"
+//libraryDependencies += "org.scalatest" %% "scalatest" % "1.8" % "test"
+libraryDependencies += "org.scalatest" % "scalatest_2.10.0-RC1" % "2.0.M4" % "test"
 
-libraryDependencies += "com.jcraft" % "jsch" % "0.1.48" % "compile"
+libraryDependencies += "org.scala-lang" % "scala-actors-migration" % "2.10.0-RC1"
+
+
+libraryDependencies += "com.jcraft" % "jsch" % "0.1.49" % "compile"
 
 libraryDependencies += "junit" % "junit" % "4.10" % "test"
 

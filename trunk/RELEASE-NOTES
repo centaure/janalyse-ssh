@@ -47,7 +47,9 @@ CAVEATS :
    SSH.remote(remotePort:Int, options:SSHOptions)
  - SSHOptions API CHANGE, a second parameter list have been added, host parameter moved from first one to the second one
    GOAL : Allow simple creation of partial function with SSHOptions, to share ssh options between several connections...
-
+ - SSHTransferOperations new methods :
+   send(filename: String)
+   receive(filename: String)
    
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception

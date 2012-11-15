@@ -31,61 +31,48 @@ import java.util.concurrent.locks.LockSupport
 import java.util.Date
 import java.text.SimpleDateFormat
 
-
-
-
 // ==========================================================================================
 
-
-
 /**
-  * SSHCommand class models ssh command
-  * @author David Crosson
-  */
+ * SSHCommand class models ssh command
+ * @author David Crosson
+ */
 class SSHCommand(val cmd: String) {
   def §§(implicit ssh: SSH) = ssh.shell { _ execute this }
 }
 
 /**
-  * SSHCommand object implicit conversions container  
-  * @author David Crosson
-  */
+ * SSHCommand object implicit conversions container
+ * @author David Crosson
+ */
 object SSHCommand {
   implicit def stringToCommand(cmd: String) = new SSHCommand(cmd)
 }
 
-
 // ==========================================================================================
 
-
-
-
 /**
-  * SSHBatch class models ssh batch (in fact a list of commands)  
-  * @author David Crosson
-  */
+ * SSHBatch class models ssh batch (in fact a list of commands)
+ * @author David Crosson
+ */
 class SSHBatch(val cmdList: Iterable[String]) {
   def §§(implicit ssh: SSH) = ssh.shell { _ executeAll this }
 }
 
 /**
-  * SSHBatch object implicit conversions container  
-  * @author David Crosson
-  */
+ * SSHBatch object implicit conversions container
+ * @author David Crosson
+ */
 object SSHBatch {
   implicit def stringListToBatchList(cmdList: Iterable[String]) = new SSHBatch(cmdList)
 }
 
-
 // ==========================================================================================
 
-
-
-
 /**
-  * SSHRemoteFile class models a file on the remote system  
-  * @author David Crosson
-  */
+ * SSHRemoteFile class models a file on the remote system
+ * @author David Crosson
+ */
 class SSHRemoteFile(val remoteFilename: String) {
   def get(implicit ssh: SSH) = {
     ssh.ftp { _ get remoteFilename }
@@ -102,34 +89,55 @@ class SSHRemoteFile(val remoteFilename: String) {
 }
 
 /**
-  * SSHRemoteFile object implicit conversions container  
-  * @author David Crosson
-  */
+ * SSHRemoteFile object implicit conversions container
+ * @author David Crosson
+ */
 object SSHRemoteFile {
   implicit def stringToRemoteFile(filename: String) = new SSHRemoteFile(filename)
 }
 
-
 // ==========================================================================================
 
+trait CommonOperations {
+  private def streamMd5sum(input: java.io.InputStream): String = {
+    val bis = new java.io.BufferedInputStream(input)
+    val buffer = new Array[Byte](1024)
+    val md5 = java.security.MessageDigest.getInstance("MD5")
+    Stream.continually(bis.read(buffer)).takeWhile(_ != -1).foreach(md5.update(buffer, 0, _))
+    md5.digest().map(0xFF & _).map { "%02x".format(_) }.foldLeft("") { _ + _ }
+  }
+  private def fileMd5sum(file: File): String = streamMd5sum(new FileInputStream(file))
+     
+  /**
+   * locale file md5sum
+   * @param filename file name
+   * @return md5sum as an optional String, or None if filename was not found
+   */
+  def localmd5sum(filename: String): Option[String] =
+    Option(filename)
+       .map(f=> new File(f))
+       .filter(_.exists())
+       .map(fileMd5sum _)
+
+}
 
 /**
  * TransfertOperations defines generic data transfer operations over SCP or SFTP
  */
-trait TransfertOperations {
+trait TransfertOperations extends CommonOperations {
   /**
    * get remote file content as an optional String
    * @param remoteFilename file content to get
-   * @return Some content or None if file was not found 
+   * @return Some content or None if file was not found
    */
-  def get(remoteFilename: String):Option[String]
+  def get(remoteFilename: String): Option[String]
 
   /**
    * get remote file content as an optional bytes array
    * @param remoteFilename file content to get
-   * @return Some content or None if file was not found 
+   * @return Some content or None if file was not found
    */
-  def getBytes(remoteFilename: String):Option[Array[Byte]]
+  def getBytes(remoteFilename: String): Option[Array[Byte]]
 
   /**
    * Copy a remote file to a local one
@@ -137,7 +145,7 @@ trait TransfertOperations {
    * @param localFile Destination file (local system)
    */
   def receive(remoteFilename: String, toLocalFile: File)
-  
+
   /**
    * Copy a remote file to a local one
    * @param remoteFilename Source file name (on remote system)
@@ -149,7 +157,7 @@ trait TransfertOperations {
 
   /**
    * Copy a remote file to a local one using the same filename
-   * @param filename file name 
+   * @param filename file name
    */
   def receive(filename: String) {
     receive(filename, new File(filename))
@@ -158,18 +166,17 @@ trait TransfertOperations {
   /**
    * upload string content to a remote file, if file already exists, it is overwritten
    * @param data content to upload in the remote file
-   * @param remoteDestination file content to get 
+   * @param remoteDestination file content to get
    */
   def put(data: String, remoteDestination: String)
 
   /**
    * upload bytes array content to a remote file, if file already exists, it is overwritten
    * @param data content to upload in the remote file
-   * @param remoteDestination file content to get 
+   * @param remoteDestination file content to get
    */
   def putBytes(data: Array[Byte], remoteDestination: String)
 
-  
   /**
    * Copy a local file to a remote one
    * @param fromLocalFilename Source file name (local system)
@@ -187,7 +194,6 @@ trait TransfertOperations {
     send(new File(filename), filename)
   }
 
-  
   /**
    * Copy a local file to a remote one
    * @param fromLocalFile Source file (local system)
@@ -202,8 +208,8 @@ trait TransfertOperations {
 /**
  * ShellOperations defines generic shell operations and common shell commands shortcuts
  */
-trait ShellOperations {
-  
+trait ShellOperations extends CommonOperations {
+
   /**
    * Execute the current command and return the result as a string
    * @param cmd command to be executed
@@ -211,15 +217,13 @@ trait ShellOperations {
    */
   def execute(cmd: SSHCommand): String
 
-
   /**
    * Execute the current batch (list of commands) and return the result as a string collection
    * @param cmds batch to be executed
    * @return result string collection
    */
-  def executeAll(cmds: SSHBatch):Iterable[String]
+  def executeAll(cmds: SSHBatch): Iterable[String]
 
-  
   /**
    * Execute the current command and pass the result to the given code
    * @param cmd command to be executed
@@ -240,7 +244,7 @@ trait ShellOperations {
    * @return result string
    */
   def executeAndTrimSplit(cmd: SSHCommand): Iterable[String] = execute(cmd).trim().split("\r?\n")
-  
+
   /**
    * Execute the current batch (list of commands) and return the result as a string collection
    * @param cmds batch to be executed
@@ -254,13 +258,13 @@ trait ShellOperations {
    * @return result trimmed splitted string collection
    */
   def executeAllAndTrimSplit(cmds: SSHBatch) = executeAll(cmds.cmdList) map { _.trim.split("\r?\n") }
-  
+
   /**
    * Remote file size in bytes
    * @param filename file name
    * @return optional file size, or None if filename was not found
    */
-  def fileSize(filename: String):Option[Long] = 
+  def fileSize(filename: String): Option[Long] =
     genoptcmd("""ls -ld "%s" """.format(filename)).map(_.split("""\s+""")(4).toLong)
 
   /**
@@ -268,98 +272,98 @@ trait ShellOperations {
    * @param filename file name
    * @return md5sum as an optional String, or None if filename was not found
    */
-  def md5sum(filename: String):Option[String] =
-    genoptcmd("""md5sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
-  
+  def md5sum(filename: String): Option[String] =
+    genoptcmd("""md5sum "%s" """.format(filename)).map(_.split("""\s+""")(0))
+
   /**
    * Remote file sha1sum
-   * @param filename file name 
+   * @param filename file name
    * @return sha1sum as an optional String, or None if filename was not found
    */
-  def sha1sum(filename: String):Option[String] =
-    genoptcmd("""sha1sum "%s" """.format(filename)).map(_.split("""\s+""")(0))  
-  
+  def sha1sum(filename: String): Option[String] =
+    genoptcmd("""sha1sum "%s" """.format(filename)).map(_.split("""\s+""")(0))
+
   /**
    * *nix system name (Linux, AIX, SunOS, ...)
    * @return remote *nix system name
    */
-  def uname:String = executeAndTrim("""uname 2>/dev/null""")
-  
+  def uname: String = executeAndTrim("""uname 2>/dev/null""")
+
   /**
    * List files in specified directory
    * @return current directory files as an Iterable
    */
-  def ls():Iterable[String] = ls(".")
+  def ls(): Iterable[String] = ls(".")
 
   /**
    * List files in specified directory
    * @param dirname directory to look into
    * @return current directory files as an Iterable
    */
-  def ls(dirname:String):Iterable[String] = executeAndTrimSplit("""ls --format=single-column "%s" """.format(dirname))
-  
+  def ls(dirname: String): Iterable[String] = executeAndTrimSplit("""ls --format=single-column "%s" """.format(dirname))
+
   /**
    * Get current working directory
    * @return current directory
    */
-  def pwd():String = executeAndTrim("pwd")
-  
+  def pwd(): String = executeAndTrim("pwd")
+
   /**
    * Change current working directory to home directory
    * Of course this requires a persistent shell session to be really useful...
    */
-  def cd() {execute("cd")}
+  def cd() { execute("cd") }
 
   /**
    * Change current working directory to the specified directory
    * Of course this requires a persistent shell session to be really useful...
    * @param dirname directory name
    */
-  def cd(dirname:String) {execute("""cd "%s" """.format(dirname))}
-  
+  def cd(dirname: String) { execute("""cd "%s" """.format(dirname)) }
+
   /**
    * Get remote host name
    * @return host name
    */
-  def hostname:String = executeAndTrim("""hostname""")
+  def hostname: String = executeAndTrim("""hostname""")
 
   /**
    * Get remote date, as a java class Date instance (minimal resolution = 1 second)
    * @return The remote system current date as a java Date class instance
    */
-  def date():Date = {
+  def date(): Date = {
     val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z")
     val d = executeAndTrim("date -u '+%Y-%m-%d %H:%M:%S %Z'")
     sdf.parse(d)
   }
-  
+
   /**
    * Get the content of a file
    * @param filename get the content of this filename
    * @return file content
    */
-  def cat(filename:String) =  execute("cat %s".format(filename))
-  
+  def cat(filename: String) = execute("cat %s".format(filename))
+
   /**
    * Get contents of a list of files
    * @param filenames get the content of this list of filenames
    * @return files contents concatenation
    */
-  def cat(filenames:List[String]) =  execute("cat %s".format(filenames.mkString(" ")))
+  def cat(filenames: List[String]) = execute("cat %s".format(filenames.mkString(" ")))
 
   /**
-   * Find file modified after the given date (Warning, minimal resolution = 1 minute) 
+   * Find file modified after the given date (Warning, minimal resolution = 1 minute)
    * @param root Search for file from this root directory
    * @param after Date parameter
    * @return list of paths (relative to root) modified after the specified date
    */
-  def findAfterDate(root:String, after:Date):Iterable[String] = {
-    def ellapsedInMn(thatDate:Date):Long =  (date().getTime - thatDate.getTime)/1000/60
+  def findAfterDate(root: String, after: Date): Iterable[String] = {
+    def ellapsedInMn(thatDate: Date): Long = (date().getTime - thatDate.getTime) / 1000 / 60
     //deprecated : // def ellapsedInMn(thatDate:Date):Long =  (new Date().getTime - thatDate.getTime)/1000/60
     val findpattern = uname.toLowerCase match {
-	    case "linux"|"aix" => """find %s -follow -type f -mmin '-%d' 2>/dev/null"""   // "%s" => %s to enable file/dir patterns
-	    case "sunos" => throw new RuntimeException("SunOS not supported - find command doesn't support -mmin parameter")
-	    case _       => """find %s -type f -mmin '-%d' 2>/dev/null"""
+      case "linux" | "aix" => """find %s -follow -type f -mmin '-%d' 2>/dev/null""" // "%s" => %s to enable file/dir patterns
+      case "sunos" => throw new RuntimeException("SunOS not supported - find command doesn't support -mmin parameter")
+      case _ => """find %s -type f -mmin '-%d' 2>/dev/null"""
     }
     val findcommand = findpattern.format(root, ellapsedInMn(after))
     executeAndTrimSplit(findcommand)
@@ -370,115 +374,119 @@ trait ShellOperations {
    * @param that condition
    * @return True if condition is met
    */
-  def test(that:String):Boolean = {
+  def test(that: String): Boolean = {
     val cmd = """test %s ; echo $?""".format(that)
     executeAndTrim(cmd).toInt == 0
   }
-  
+
   /**
    * Does specified filename exist ?
    * @param filename file name
    * @return True if file exists
    */
-  def exists(filename:String):Boolean = testFile("-e", filename)
+  def exists(filename: String): Boolean = testFile("-e", filename)
+
+  /**
+   * Does specified filename not exist ?
+   * @param filename file name
+   * @return True if file does'nt exist
+   */
+  def notExists(filename: String): Boolean = !exists(filename)
 
   /**
    * Is file name a directory
    * @param filename file name
    * @return True if file is a directory
    */
-  def isDirectory(filename:String):Boolean = testFile("-d", filename)
-  
+  def isDirectory(filename: String): Boolean = testFile("-d", filename)
+
   /**
    * Is file name a regular file
    * @param filename file name
    * @return True if file is a regular file
    */
-  def isFile(filename:String):Boolean = testFile("-f", filename)
-  
+  def isFile(filename: String): Boolean = testFile("-f", filename)
+
   /**
    * Is filename executable ?
    * @param filename file name
    * @return True if file is executable
    */
-  def isExecutable(filename:String):Boolean = testFile("-x", filename)
+  def isExecutable(filename: String): Boolean = testFile("-x", filename)
 
-  
   /**
-   * 
+   *
    */
-  def options:SSHOptions
-  
+  def options: SSHOptions
+
   /**
-   * 
-   * 
+   *
+   *
    */
   //ps -eo pid,ppid,user,group,thcount,rss,%cpu,etime,cputime,cmd
-  case class Process(pid:Int, ppid:Int, user:String, cmdline:String) {
-    private val tokens = cmdline.split("""\s+""").toList filter { _.size > 0}
-    val cmd  = tokens.head
+  case class Process(pid: Int, ppid: Int, user: String, cmdline: String) {
+    private val tokens = cmdline.split("""\s+""").toList filter { _.size > 0 }
+    val cmd = tokens.head
     val args = tokens.tail.toList
   }
 
-  def ps():List[Process] = {
+  def ps(): List[Process] = {
     val uname = executeAndTrim("uname")
     val pscmd = uname match {
       case "Linux" => "ps -eo pid,ppid,user,cmd | grep -v grep"
-      case "AIX"|"SunOS"   => "ps -eo pid,ppid,ruser,args | grep -v grep"
-      case _       => "ps -eo pid,ppid,user,cmd | grep -v grep"
+      case "AIX" | "SunOS" => "ps -eo pid,ppid,ruser,args | grep -v grep"
+      case _ => "ps -eo pid,ppid,user,cmd | grep -v grep"
     }
-    val numRE="""(\d+)"""r
-    val processes = executeAndTrimSplit(pscmd).toList.tail map {_ trim} flatMap { l:String =>
-      (l.split("""\s+""",4)) match {
-        case Array(numRE(pid), numRE(ppid), user, cmdline) => Process(pid.toInt, ppid.toInt, user, cmdline)::Nil
+    val numRE = """(\d+)"""r
+    val processes = executeAndTrimSplit(pscmd).toList.tail map { _ trim } flatMap { l: String =>
+      (l.split("""\s+""", 4)) match {
+        case Array(numRE(pid), numRE(ppid), user, cmdline) => Process(pid.toInt, ppid.toInt, user, cmdline) :: Nil
         case notUnderstood => println("%s - %s - Process not recognized: %s".format(options.host, pscmd, notUnderstood.mkString(" "))); Nil
       }
     }
     processes
   }
-  
+
   /**
    * internal helper method
    */
-  private def genoptcmd(cmd:String):Option[String] = {
+  private def genoptcmd(cmd: String): Option[String] = {
     executeAndTrim("""%s 2>/dev/null""".format(cmd)) match {
       case "" => None
       case str => Some(str)
-    }    
+    }
   }
-  
+
   /**
    * Generic test usage
    */
-  private def testFile(testopt:String, filename:String):Boolean = {
+  private def testFile(testopt: String, filename: String): Boolean = {
     val cmd = """test %s "%s" ; echo $?""".format(testopt, filename)
     executeAndTrim(cmd).toInt == 0
   }
 
-  
 }
 
 // ==========================================================================================
 
-
 /**
-  * SSHPassword class models a password, that may be given or not  
-  * @author David Crosson
-  */
+ * SSHPassword class models a password, that may be given or not
+ * @author David Crosson
+ */
 case class SSHPassword(password: Option[String]) {
   override def toString = password getOrElse ""
 }
 
 /**
-  * NoPassword object to be used when no password is given  
-  * @author David Crosson
-  */
+ * NoPassword object to be used when no password is given
+ * @author David Crosson
+ */
 object NoPassword extends SSHPassword(None)
 
 /**
-  * SSHPassword object implicit conversions container  
-  * @author David Crosson
-  */
+ * SSHPassword object implicit conversions container
+ * @author David Crosson
+ */
 object SSHPassword {
   implicit def string2password(pass: String) = pass match {
     case "" => NoPassword
@@ -492,11 +500,10 @@ object SSHPassword {
 
 // ==========================================================================================
 
-
 /**
-  * SSHOptions stores all ssh parameters
-  * @author David Crosson
-  */
+ * SSHOptions stores all ssh parameters
+ * @author David Crosson
+ */
 case class SSHOptions(
   username: String = util.Properties.userName,
   password: SSHPassword = NoPassword,
@@ -509,38 +516,33 @@ case class SSHOptions(
   retryCount: Int = 5,
   retryDelay: Int = 2000,
   sshUserDir: String = SP.userHome + FS + ".ssh",
-  sshKeyFile: Option[String]=None, // if None, will look for default names. (sshUserDir is used) 
+  sshKeyFile: Option[String] = None, // if None, will look for default names. (sshUserDir is used) 
   charset: String = "ISO-8859-15",
-  noneCipher:Boolean = true,
-  compress:Option[Int]=None
-)(
-  val host: String = "localhost"
-) {
-  val keyfiles2lookup = sshKeyFile++List("id_rsa", "id_dsa")  // ssh key search order (from sshUserDir) 
+  noneCipher: Boolean = true,
+  compress: Option[Int] = None)(
+    val host: String = "localhost") {
+  val keyfiles2lookup = sshKeyFile ++ List("id_rsa", "id_dsa") // ssh key search order (from sshUserDir) 
 }
 
-  
-  
 // ==========================================================================================
 
-  
 /**
-  * SSH object factories
-  * @author David Crosson
-  */
-object SSH  {
+ * SSH object factories
+ * @author David Crosson
+ */
+object SSH {
 
   /**
-    * Executes the given code then closes the new ssh associated session. 
-    * @param host ip address or hostname
-    * @param username user name
-    * @param password user password (if ommitted, will try public key authentication)
-    * @param passphrase keys passphrase (if required)
-    * @param port remote ssh port
-    * @param timeout timeout
-    * @param withssh code bloc to execute
-    * @return "withssh" returns type
-    */
+   * Executes the given code then closes the new ssh associated session.
+   * @param host ip address or hostname
+   * @param username user name
+   * @param password user password (if ommitted, will try public key authentication)
+   * @param passphrase keys passphrase (if required)
+   * @param port remote ssh port
+   * @param timeout timeout
+   * @param withssh code bloc to execute
+   * @return "withssh" returns type
+   */
   def once[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -551,37 +553,37 @@ object SSH  {
     withssh(_)
   }
   /**
-    * Executes the given code then closes the new ssh associated session. 
-    * @param options ssh options
-    * @param withssh code bloc to execute
-    * @return "withssh" returns type
-    */
-  def once[T](options: SSHOptions)(withssh: (SSH) => T):T = using(new SSH(options)) {
+   * Executes the given code then closes the new ssh associated session.
+   * @param options ssh options
+   * @param withssh code bloc to execute
+   * @return "withssh" returns type
+   */
+  def once[T](options: SSHOptions)(withssh: (SSH) => T): T = using(new SSH(options)) {
     withssh(_)
   }
   /**
-    * Executes the given code then closes the new ssh associated session. 
-    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
-    * @param withssh code bloc to execute
-    * @return "withssh" returns type
-    */
-  def once[T](someOptions: Option[SSHOptions])(withssh: (SSH) => T):Option[T] = someOptions map { options =>
+   * Executes the given code then closes the new ssh associated session.
+   * @param someOptions Some ssh options or None, if None is given, nothing will be done
+   * @param withssh code bloc to execute
+   * @return "withssh" returns type
+   */
+  def once[T](someOptions: Option[SSHOptions])(withssh: (SSH) => T): Option[T] = someOptions map { options =>
     using(new SSH(options)) {
       withssh(_)
     }
   }
 
   /**
-    * Executes the given code then closes the new ssh shell channel associated session. 
-    * @param host ip address or hostname
-    * @param username user name
-    * @param password user password (if ommitted, will try public key authentication)
-    * @param passphrase keys passphrase (if required)
-    * @param port remote ssh port
-    * @param timeout timeout
-    * @param withsh code bloc to execute
-    * @return "withsh" returns type
-    */
+   * Executes the given code then closes the new ssh shell channel associated session.
+   * @param host ip address or hostname
+   * @param username user name
+   * @param password user password (if ommitted, will try public key authentication)
+   * @param passphrase keys passphrase (if required)
+   * @param port remote ssh port
+   * @param timeout timeout
+   * @param withsh code bloc to execute
+   * @return "withsh" returns type
+   */
   def shell[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -591,33 +593,33 @@ object SSH  {
     timeout: Int = 300000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))(withsh)
 
   /**
-    * Executes the given code then closes the new ssh shell associated session. 
-    * @param options ssh options
-    * @param withsh code bloc to execute
-    * @return "withssh" returns type
-    */
+   * Executes the given code then closes the new ssh shell associated session.
+   * @param options ssh options
+   * @param withsh code bloc to execute
+   * @return "withssh" returns type
+   */
   def shell[T](options: SSHOptions)(withsh: (SSHShell) => T): T = using(new SSH(options)) { ssh =>
     ssh.shell { sh => withsh(sh) }
   }
   /**
-    * Executes the given code then closes the new ssh shell associated session. 
-    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
-    * @param withsh code bloc to execute
-    * @return "withssh" returns type
-    */
+   * Executes the given code then closes the new ssh shell associated session.
+   * @param someOptions Some ssh options or None, if None is given, nothing will be done
+   * @param withsh code bloc to execute
+   * @return "withssh" returns type
+   */
   def shell[T](someOptions: Option[SSHOptions])(withsh: (SSHShell) => T): Option[T] = someOptions map { shell[T](_)(withsh) }
 
   /**
-    * Executes the given code then closes the new ssh ftp channel associated session. 
-    * @param host ip address or hostname
-    * @param username user name
-    * @param password user password (if ommitted, will try public key authentication)
-    * @param passphrase keys passphrase (if required)
-    * @param port remote ssh port
-    * @param timeout timeout
-    * @param withftp code bloc to execute
-    * @return "withftp" returns type
-    */
+   * Executes the given code then closes the new ssh ftp channel associated session.
+   * @param host ip address or hostname
+   * @param username user name
+   * @param password user password (if ommitted, will try public key authentication)
+   * @param passphrase keys passphrase (if required)
+   * @param port remote ssh port
+   * @param timeout timeout
+   * @param withftp code bloc to execute
+   * @return "withftp" returns type
+   */
   def ftp[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
@@ -627,93 +629,91 @@ object SSH  {
     timeout: Int = 300000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))(withftp)
 
   /**
-    * Executes the given code then closes the new sftp associated session. 
-    * @param options ssh options
-    * @param withftp code bloc to execute
-    * @return "withftp" returns type
-    */
+   * Executes the given code then closes the new sftp associated session.
+   * @param options ssh options
+   * @param withftp code bloc to execute
+   * @return "withftp" returns type
+   */
   def ftp[T](options: SSHOptions)(withftp: (SSHFtp) => T): T = using(new SSH(options)) { ssh =>
     ssh.ftp { ftp => withftp(ftp) }
   }
-  
+
   /**
-    * Executes the given code then closes the new sftp associated session. 
-    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
-    * @param withftp code bloc to execute
-    * @return "withftp" returns type
-    */
+   * Executes the given code then closes the new sftp associated session.
+   * @param someOptions Some ssh options or None, if None is given, nothing will be done
+   * @param withftp code bloc to execute
+   * @return "withftp" returns type
+   */
   def ftp[T](someOptions: Option[SSHOptions])(withftp: (SSHFtp) => T): Option[T] = someOptions map { ftp[T](_)(withftp) }
 
   /**
-    * Executes the given code then closes the new ssh shell and ftp channels associated sessions. 
-    * @param host ip address or hostname
-    * @param username user name
-    * @param password user password (if ommitted, will try public key authentication)
-    * @param passphrase keys passphrase (if required)
-    * @param port remote ssh port
-    * @param timeout timeout
-    * @param withshftp code bloc to execute
-    * @return "withshftp" returns type
-    */
+   * Executes the given code then closes the new ssh shell and ftp channels associated sessions.
+   * @param host ip address or hostname
+   * @param username user name
+   * @param password user password (if ommitted, will try public key authentication)
+   * @param passphrase keys passphrase (if required)
+   * @param port remote ssh port
+   * @param timeout timeout
+   * @param withshftp code bloc to execute
+   * @return "withshftp" returns type
+   */
   def shellAndFtp[T](
     host: String = "localhost",
     username: String = util.Properties.userName,
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host=host))(withshftp)
+    timeout: Int = 300000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))(withshftp)
 
   /**
-    * Executes the given code then closes the new ssh shell and sftp associated sessions. 
-    * @param options ssh options
-    * @param withshftp code bloc to execute
-    * @return "withshftp" returns type
-    */
+   * Executes the given code then closes the new ssh shell and sftp associated sessions.
+   * @param options ssh options
+   * @param withshftp code bloc to execute
+   * @return "withshftp" returns type
+   */
   def shellAndFtp[T](options: SSHOptions)(withshftp: (SSHShell, SSHFtp) => T): T = using(new SSH(options)) { ssh =>
     ssh.shell { sh => ssh.ftp { ftp => withshftp(sh, ftp) } }
   }
   /**
-    * Executes the given code then closes the new ssh shell and sftp associated sessions. 
-    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
-    * @param withshftp code bloc to execute
-    * @return "withshftp" returns type
-    */
+   * Executes the given code then closes the new ssh shell and sftp associated sessions.
+   * @param someOptions Some ssh options or None, if None is given, nothing will be done
+   * @param withshftp code bloc to execute
+   * @return "withshftp" returns type
+   */
   def shellAndFtp[T](someOptions: Option[SSHOptions])(withshftp: (SSHShell, SSHFtp) => T): Option[T] = someOptions map { shellAndFtp[T](_)(withshftp) }
 
-  
   /**
-    * Creates a new SSH session, it is up to the user to manage close 
-    * @param host ip address or hostname
-    * @param username user name
-    * @param password user password (if ommitted, will try public key authentication)
-    * @param passphrase keys passphrase (if required)
-    * @param port remote ssh port
-    * @param timeout timeout
-    * @return SSH session
-    */
+   * Creates a new SSH session, it is up to the user to manage close
+   * @param host ip address or hostname
+   * @param username user name
+   * @param password user password (if ommitted, will try public key authentication)
+   * @param passphrase keys passphrase (if required)
+   * @param port remote ssh port
+   * @param timeout timeout
+   * @return SSH session
+   */
   def apply(
     host: String = "localhost",
     username: String = util.Properties.userName,
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000) = new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host=host))
+    timeout: Int = 300000) = new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))
 
   /**
-    * Creates a new SSH session, it is up to the user to manage close 
-    * @param options ssh options
-    * @return SSH session
-    */
+   * Creates a new SSH session, it is up to the user to manage close
+   * @param options ssh options
+   * @return SSH session
+   */
   def apply(options: SSHOptions) = new SSH(options)
-  
+
   /**
-    * Creates a new SSH session, it is up to the user to manage close 
-    * @param someOptions Some ssh options or None, if None is given, nothing will be done 
-    * @return Some SSH session or None
-    */
+   * Creates a new SSH session, it is up to the user to manage close
+   * @param someOptions Some ssh options or None, if None is given, nothing will be done
+   * @return Some SSH session or None
+   */
   def apply(someOptions: Option[SSHOptions]): Option[SSH] = someOptions map { new SSH(_) }
 
-  
   protected def using[T <: { def close() }, R](resource: T)(block: T => R) = {
     try block(resource)
     finally resource.close
@@ -721,28 +721,22 @@ object SSH  {
 
 }
 
-
-
-
-
-
-
 /**
-  * SSH class. This class is the main entry point to the API
-  * @author David Crosson
-  */
+ * SSH class. This class is the main entry point to the API
+ * @author David Crosson
+ */
 class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperations {
   private implicit val ssh = this
   private val jsch = new JSch
-  val jschsession: Session = { 
+  val jschsession: Session = {
     options.keyfiles2lookup
-       .toStream
-       .map(new File(options.sshUserDir, _))
-       .filter(_.exists)
-       .foreach(f => jsch.addIdentity(f.getAbsolutePath))
+      .toStream
+      .map(new File(options.sshUserDir, _))
+      .filter(_.exists)
+      .foreach(f => jsch.addIdentity(f.getAbsolutePath))
 
     val ses = jsch.getSession(options.username, options.host, options.port)
-    ses.setTimeout(options.timeout.toInt)  // Timeout for the ssh connection (unplug cable to simulate) 
+    ses.setTimeout(options.timeout.toInt) // Timeout for the ssh connection (unplug cable to simulate) 
     ses.setUserInfo(SSHUserInfo(options.password.password, options.passphrase.password))
     ses.connect(options.connectTimeout.toInt)
     if (ssh.options.noneCipher) {
@@ -755,13 +749,13 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
       ses.rekey()
     }
     if (ssh.options.compress.isDefined) {
-    	ses.setConfig("compression.s2c", "zlib@openssh.com,zlib,none");
-    	ses.setConfig("compression.c2s", "zlib@openssh.com,zlib,none");
-    	ses.setConfig("compression_level", ssh.options.compress.get.toString);
+      ses.setConfig("compression.s2c", "zlib@openssh.com,zlib,none");
+      ses.setConfig("compression.c2s", "zlib@openssh.com,zlib,none");
+      ses.setConfig("compression_level", ssh.options.compress.get.toString);
     } else {
-    	ses.setConfig("compression.s2c", "none,zlib@openssh.com,zlib");
-    	ses.setConfig("compression.c2s", "none,zlib@openssh.com,zlib");      
-    	ses.setConfig("compression_level", "0");
+      ses.setConfig("compression.s2c", "none,zlib@openssh.com,zlib");
+      ses.setConfig("compression.c2s", "none,zlib@openssh.com,zlib");
+      ses.setConfig("compression_level", "0");
     }
     ses
   }
@@ -769,20 +763,18 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
   def shell[T](proc: (SSHShell) => T) = SSH.using(new SSHShell) { proc(_) }
 
   def ftp[T](proc: (SSHFtp) => T) = SSH.using(new SSHFtp) { proc(_) }
-  
+
   def scp[T](proc: (SSHScp) => T) = SSH.using(new SSHScp) { proc(_) }
 
   def noerr(data: Option[String]) {}
 
   def run(cmd: String, out: Option[String] => Any, err: Option[String] => Any = noerr) = new SSHExec(cmd, out, err)
-  
+
   override def execute(cmd: SSHCommand) =
     //shell { _ execute cmd.cmd }    // Using SSHShell channel  (lower performances)
     execOnce(cmd) // Using SSHExec channel (better performances)
 
-    
   override def executeAll(cmds: SSHBatch) = shell { _ executeAll cmds }
-
 
   def execOnceAndTrim(scmd: SSHCommand) = execOnce(scmd).trim()
 
@@ -804,21 +796,20 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     sb.toString()
   }
 
-  
-  override def get(remoteFilename: String):Option[String] = {
+  override def get(remoteFilename: String): Option[String] = {
     //ssh.ftp { _ get remoteFilename }
     ssh.scp { _ get remoteFilename }
   }
 
-  override def getBytes(remoteFilename: String):Option[Array[Byte]] = {
+  override def getBytes(remoteFilename: String): Option[Array[Byte]] = {
     //ssh.ftp { _ getBytes remoteFilename }
     ssh.scp { _ getBytes remoteFilename }
   }
-  
+
   override def receive(remoteFilename: String, toLocalFile: File) {
     //ssh.ftp { _.receive(remoteFilename, toLocalFile) }
     ssh.scp { _.receive(remoteFilename, toLocalFile) }
-  }  
+  }
 
   override def put(data: String, remoteDestination: String) {
     //ssh.ftp { _ put (data, remoteDestination) }        
@@ -832,70 +823,69 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
 
   override def send(fromLocalFile: File, remoteDestination: String) {
     //ssh.ftp {_.send(fromLocalFile, remoteDestination)}
-    ssh.scp {_.send(fromLocalFile, remoteDestination)}
+    ssh.scp { _.send(fromLocalFile, remoteDestination) }
   }
 
   /**
    * Remote host/port => local port (client-side)
    * @param lport remote host port will be mapped on this port on client side (bound to localhost)
-   * @param host  remote host (accessed through ssh server side)  
+   * @param host  remote host (accessed through ssh server side)
    * @param hport remote port (on remote host) to bring back locally
    */
-  def remote2Local(lport:Int, host:String, hport:Int) = {
+  def remote2Local(lport: Int, host: String, hport: Int) = {
     jschsession.setPortForwardingL(lport, host, hport)
   }
 
   /**
    * Remote host/port => local port (client-side automatically chosen)
    * @param lport remote host port will be mapped on this port on client side (bound to localhost)
-   * @param host  remote host (accessed through ssh server side)  
+   * @param host  remote host (accessed through ssh server side)
    * @param hport remote port (on remote host) to bring back locally
    * @return chosen local listening port
    */
-  def remote2Local(host:String, hport:Int) = {
+  def remote2Local(host: String, hport: Int) = {
     jschsession.setPortForwardingL(0, host, hport)
   }
 
   /**
    * Local (client-side) host/port => Remote host with specified port
    * @param rport the port to create on remote server (where the ssh server stands) to forward lhost/lport
-   * @param lhost local host (accessible from ssh client host) from which we'll forward a port 
+   * @param lhost local host (accessible from ssh client host) from which we'll forward a port
    * @param lport the port to foward
    */
-  def local2Remote(rport:Int, lhost:String, lport:Int) {
+  def local2Remote(rport: Int, lhost: String, lport: Int) {
     jschsession.setPortForwardingR(rport, lhost, lport);
   }
-  
+
   /**
    * Get access to a remote SSH through current SSH session
    * @param options ssh options
    * @return SSH session
    */
-  def remote(remoteOptions:SSHOptions):SSH = {
-    val chosenPort:Int = remote2Local(remoteOptions.host, remoteOptions.port)
-    val localOptions = remoteOptions.copy(port=chosenPort)(host="127.0.0.1")
+  def remote(remoteOptions: SSHOptions): SSH = {
+    val chosenPort: Int = remote2Local(remoteOptions.host, remoteOptions.port)
+    val localOptions = remoteOptions.copy(port = chosenPort)(host = "127.0.0.1")
     new SSH(localOptions)
   }
-  
+
   /**
    * Get access to a remote SSH through current SSH session
-    * @param host ip address or hostname
-    * @param username user name
-    * @param password user password (if ommitted, will try public key authentication)
-    * @param passphrase keys passphrase (if required)
-    * @param port remote ssh port
-    * @param timeout timeout
-    * @return SSH session
-    */
+   * @param host ip address or hostname
+   * @param username user name
+   * @param password user password (if ommitted, will try public key authentication)
+   * @param passphrase keys passphrase (if required)
+   * @param port remote ssh port
+   * @param timeout timeout
+   * @return SSH session
+   */
   def remote(
     host: String = "localhost",
     username: String = util.Properties.userName,
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000):SSH = remote(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host=host))
+    timeout: Int = 300000): SSH = remote(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))
 
-    
   /**
    * returns a new shell for current SSH session, you must manage close operation by your self
    */
@@ -914,14 +904,11 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
 
 }
 
-
-
 // ==========================================================================================
-
 
 class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => Any)(implicit ssh: SSH) {
 
-  private val (channel, stdout, stderr, stdin) = {    
+  private val (channel, stdout, stderr, stdin) = {
     val ch = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
     ch.setCommand(cmd.getBytes())
     val stdout = ch.getInputStream()
@@ -1005,16 +992,15 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
 
 // ==========================================================================================
 
-
 class SSHScp(implicit ssh: SSH) extends TransfertOperations {
 
- override def get(remoteFilename: String):Option[String] = {
+  override def get(remoteFilename: String): Option[String] = {
     getBytes(remoteFilename).map(new String(_, ssh.options.charset))
   }
 
-  override def getBytes(remoteFilename: String):Option[Array[Byte]] = {
+  override def getBytes(remoteFilename: String): Option[Array[Byte]] = {
     var filesBuffer = Map.empty[String, ByteArrayOutputStream]
-    def filename2outputStream(filename:String) = {
+    def filename2outputStream(filename: String) = {
       val newout = new ByteArrayOutputStream()
       filesBuffer += filename -> newout
       newout
@@ -1027,41 +1013,38 @@ class SSHScp(implicit ssh: SSH) extends TransfertOperations {
   }
 
   override def receive(remoteFilename: String, toLocalFile: File) {
-    def filename2outputStream(filename:String) = new FileOutputStream(toLocalFile)
+    def filename2outputStream(filename: String) = new FileOutputStream(toLocalFile)
     remoteFile2OutputStream(remoteFilename, filename2outputStream) match {
       case 0 => throw new RuntimeException("Remote file name '%s' not found".format(remoteFilename))
       case 1 => // OK
       case _ => throw new RuntimeException("Want one file, but several files were found for '%s'".format(remoteFilename))
-    }    
+    }
   }
-  
+
   override def put(data: String, remoteDestination: String) {
     putBytes(data.getBytes(ssh.options.charset), remoteDestination)
   }
 
-  
   override def putBytes(data: Array[Byte], remoteDestination: String) {
     val sz = data.length
     val linput = new ByteArrayInputStream(data)
     val parts = remoteDestination.split("/")
-    val rfilename  = parts.last
-    val rDirectory = if (parts.init.size==0) "." else parts.init.mkString("/")
-    
+    val rfilename = parts.last
+    val rDirectory = if (parts.init.size == 0) "." else parts.init.mkString("/")
+
     inputStream2remoteFile(linput, sz, rfilename, rDirectory)
   }
 
   override def send(fromLocalFile: File, remoteDestination: String) {
     val sz = fromLocalFile.length
     val linput = new FileInputStream(fromLocalFile)
-    val parts = remoteDestination.split("/",-1)
-    val rfilename  = if (parts.last.length==0) fromLocalFile.getName else parts.last
-    val rDirectory = if (parts.init.size==0) "." else parts.init.mkString("/") 
+    val parts = remoteDestination.split("/", -1)
+    val rfilename = if (parts.last.length == 0) fromLocalFile.getName else parts.last
+    val rDirectory = if (parts.init.size == 0) "." else parts.init.mkString("/")
 
     inputStream2remoteFile(linput, sz, rfilename, rDirectory)
   }
 
-  
-  
   /**
    * upload a local input stream to a remote destination
    * @param localinput the input stream from which we read data
@@ -1069,27 +1052,27 @@ class SSHScp(implicit ssh: SSH) extends TransfertOperations {
    * @param remoteFilename remote file name to use (just a filename, not a path, shouln't contain any path separator)
    * @param remoteDirectory remote destination directory for our file
    */
-  
+
   def inputStream2remoteFile(
-      localinput: InputStream,
-      datasize:Long,
-      remoteFilename:String,
-      remoteDirectory:String) {
+    localinput: InputStream,
+    datasize: Long,
+    remoteFilename: String,
+    remoteDirectory: String) {
     val ch = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
     try {
       ch.setCommand("""scp -p -t "%s"""".format(remoteDirectory))
       val sin = new BufferedInputStream(ch.getInputStream())
       val sout = ch.getOutputStream()
       ch.connect(ssh.options.connectTimeout.toInt)
-    
+
       checkAck(sin)
-      
+
       // send "C0644 filesize filename", where filename should not include '/'
       //println("******"+remoteFilename+" "+remoteDirectory)
       val command = "C0644 %d %s\n".format(datasize, remoteFilename) // TODO take into account remote file rights
       sout.write(command.getBytes("US-ASCII"))
       sout.flush()
-      
+
       checkAck(sin)
 
       val bis = new BufferedInputStream(localinput)
@@ -1103,72 +1086,72 @@ class SSHScp(implicit ssh: SSH) extends TransfertOperations {
       }
       if (datasize>0) Stream.continually(bis.read()).takeWhile(chk(_)).foreach(sout.write(_))
       */
-      var writtenBytes=0
+      var writtenBytes = 0
       while (writtenBytes < datasize) {
-         val c = bis.read()
-         if (c>=0) {
-           sout.write(c)
-           writtenBytes+=1
-         }
+        val c = bis.read()
+        if (c >= 0) {
+          sout.write(c)
+          writtenBytes += 1
+        }
       }
       bis.close()
-      
+
       // send '\0'
       sout.write(Array[Byte](0x00))
       sout.flush()
-      
+
       checkAck(sin)
-      
+
     } finally {
       if (ch.isConnected) ch.disconnect
     }
   }
-  
- /**
-   * lookup for remote files, for each found file send the content to 
+
+  /**
+   * lookup for remote files, for each found file send the content to
    * an OutputStream created using the specified builder
    * @param remoteFilenameMask file name or file mask
-   * @return number of found files 
+   * @return number of found files
    */
-  
+
   def remoteFile2OutputStream(
-      remoteFilenameMask:String,
-      outputStreamBuilder:(String)=>OutputStream):Int = {
+    remoteFilenameMask: String,
+    outputStreamBuilder: (String) => OutputStream): Int = {
     val ch = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
     try {
       ch.setCommand("""scp -f "%s"""".format(remoteFilenameMask))
       val sin = new BufferedInputStream(ch.getInputStream())
       val sout = ch.getOutputStream()
       ch.connect(ssh.options.connectTimeout.toInt)
-      
+
       sout.write(0)
       sout.flush()
-      
-      var count=0
+
+      var count = 0
       val buf = new StringBuilder() // Warning : Mutable state, take care
-      def bufAppend(x:Int) {buf.append(x.asInstanceOf[Char])}
-      def bufReset() {buf.setLength(0)}
+      def bufAppend(x: Int) { buf.append(x.asInstanceOf[Char]) }
+      def bufReset() { buf.setLength(0) }
       def bufStr = buf.toString
-      
-      while(checkAck(sin)=='C') {
+
+      while (checkAck(sin) == 'C') {
         val fileRights = new Array[Byte](5)
         sin.read(fileRights, 0, 5)
 
         bufReset()
-        Stream.continually(sin.read()).takeWhile(_!=' ').foreach(bufAppend(_))
+        Stream.continually(sin.read()).takeWhile(_ != ' ').foreach(bufAppend(_))
         val fz = bufStr.toLong
 
         bufReset()
-        Stream.continually(sin.read()).takeWhile(_!=0x0a).foreach(bufAppend(_))
+        Stream.continually(sin.read()).takeWhile(_ != 0x0a).foreach(bufAppend(_))
         val filename = bufStr
 
         //println(remoteFilenameMask+ " " + count + " " + new String(fileRights)+ " '"+ filename + "' #" + fz)
-        
+
         sout.write(0)
         sout.flush()
 
         val fos = new BufferedOutputStream(outputStreamBuilder(filename), 8192)
-        
+
         /*
         val chk = {
           var readCount=0L
@@ -1179,50 +1162,47 @@ class SSHScp(implicit ssh: SSH) extends TransfertOperations {
         }
         if (fz>0) Stream.continually(sin.read()).takeWhile(chk(_)).foreach(fos.write(_))
         */
-        
-        var  writtenBytes=0L
-        while(writtenBytes<fz) {
-          val c=sin.read()
-          if (c>=0) {
+
+        var writtenBytes = 0L
+        while (writtenBytes < fz) {
+          val c = sin.read()
+          if (c >= 0) {
             fos.write(c)
-            writtenBytes+=1
+            writtenBytes += 1
           }
         }
-        
-        
+
         fos.close
-        
-        count+=1
-        
+
+        count += 1
+
         checkAck(sin)
         sout.write(0)
         sout.flush()
       }
-      
+
       count
     } finally {
       if (ch.isConnected) ch.disconnect
     }
   }
 
- 
-  
-  private def checkAck(in:InputStream):Int = {
+  private def checkAck(in: InputStream): Int = {
     def consumeMessage() = {
       val sb = new StringBuffer()
       Stream.continually(in.read())
-      .takeWhile(x => (x != '\n') && (x != -1))
-      .foreach(x => sb.append(x.asInstanceOf[Char]))
+        .takeWhile(x => (x != '\n') && (x != -1))
+        .foreach(x => sb.append(x.asInstanceOf[Char]))
     }
     in.read() match {
-      case 1  => throw new RuntimeException("SSH transfert protocol error "+consumeMessage())
-      case 2  => throw new RuntimeException("SSH transfert protocol fatal error "+consumeMessage())
-      case x  => x
+      case 1 => throw new RuntimeException("SSH transfert protocol error " + consumeMessage())
+      case 2 => throw new RuntimeException("SSH transfert protocol fatal error " + consumeMessage())
+      case x => x
     }
   }
-  
+
   def close() {}
-  
+
 }
 
 // ==========================================================================================
@@ -1239,8 +1219,7 @@ class SSHFtp(implicit ssh: SSH) extends TransfertOperations {
     channel.quit
     channel.disconnect
   }
-  
-  
+
   override def get(filename: String): Option[String] = {
     try {
       implicit val codec = new io.Codec(Charset.forName(ssh.options.charset))
@@ -1250,8 +1229,7 @@ class SSHFtp(implicit ssh: SSH) extends TransfertOperations {
       case e: IOException => None
     }
   }
-  
-  
+
   override def getBytes(filename: String): Option[Array[Byte]] = {
     try {
       Some(SSHTools.inputStream2ByteArray(channel.get(filename)))
@@ -1269,26 +1247,22 @@ class SSHFtp(implicit ssh: SSH) extends TransfertOperations {
       case e: IOException => None
     }
   }
-  
+
   override def put(data: String, remoteFilename: String) {
     channel.put(new ByteArrayInputStream(data.getBytes(ssh.options.charset)), remoteFilename)
   }
-  
+
   override def putBytes(data: Array[Byte], remoteFilename: String) {
     channel.put(new ByteArrayInputStream(data), remoteFilename)
   }
-  
+
   override def send(localFile: File, remoteFilename: String) {
     channel.put(new FileInputStream(localFile), remoteFilename)
   }
 
 }
 
-
-
 // ==========================================================================================
-
-
 
 class SSHShell(implicit ssh: SSH) extends ShellOperations {
   val readyMessage = "ready-" + System.currentTimeMillis()
@@ -1297,7 +1271,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
   val prompt = ssh.options.prompt getOrElse defaultPrompt
 
   val options = ssh.options
-  
+
   val (channel, toServer, fromServer) = {
     var ch: ChannelShell = ssh.jschsession.openChannel("shell").asInstanceOf[ChannelShell]
     ch.setPtyType("dumb")
@@ -1317,7 +1291,6 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     (ch, toServer, fromServer)
   }
 
-
   def close() = {
     fromServer.close()
     toServer.close()
@@ -1329,7 +1302,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     fromServer.getResponse()
   }
 
-  override def executeAll(cmds: SSHBatch):Iterable[String] =  cmds.cmdList.map(execute(_))
+  override def executeAll(cmds: SSHBatch): Iterable[String] = cmds.cmdList.map(execute(_))
 
   /*
   def execute[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
@@ -1340,7 +1313,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     builder.result
   }
 */
-  
+
   private var doInit = true
   private def sendCommand(cmd: String): Unit = {
     if (doInit) {
@@ -1425,7 +1398,6 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
 }
 // ==========================================================================================
 
-
 /* Attention
  * - L'option PasswordAuthentication doit être à "yes" sinon impossible de s'authentifier
  *   (Configuration au niveau du serveur SSH) SSI on n'implemente pas "promptKeyboardInteractive"
@@ -1444,15 +1416,15 @@ case class SSHUserInfo(password: Option[String] = None, passphrase: Option[Strin
 // ==========================================================================================
 
 object SSHTools {
-  def md5sum(str:String):String = {
+  def md5sum(str: String): String = {
     md5sum(new ByteArrayInputStream(str.getBytes())) // TODO : Warning manage charsets...
   }
-  def md5sum(input:InputStream):String = {
+  def md5sum(input: InputStream): String = {
     val bis = new BufferedInputStream(input)
     val buf = new Array[Byte](1024)
     val md5 = java.security.MessageDigest.getInstance("MD5")
     Stream.continually(bis.read(buf)).takeWhile(_ != -1).foreach(md5.update(buf, 0, _))
-    md5.digest().map(0xFF & _).map { "%02x".format(_) }.foldLeft(""){_ + _}
+    md5.digest().map(0xFF & _).map { "%02x".format(_) }.foldLeft("") { _ + _ }
   }
   def getFile(filename: String): String = {
     new BufferedSource(new FileInputStream(filename)).mkString

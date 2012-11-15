@@ -146,7 +146,15 @@ trait TransfertOperations {
   def receive(remoteFilename: String, localFilename: String) {
     receive(remoteFilename, new File(localFilename))
   }
-  
+
+  /**
+   * Copy a remote file to a local one using the same filename
+   * @param filename file name 
+   */
+  def receive(filename: String) {
+    receive(filename, new File(filename))
+  }
+
   /**
    * upload string content to a remote file, if file already exists, it is overwritten
    * @param data content to upload in the remote file
@@ -171,6 +179,15 @@ trait TransfertOperations {
     send(new File(fromLocalFilename), remoteDestination)
   }
 
+  /**
+   * Copy a local file to a remote one using the same name
+   * @param filename file name
+   */
+  def send(filename: String) {
+    send(new File(filename), filename)
+  }
+
+  
   /**
    * Copy a local file to a remote one
    * @param fromLocalFile Source file (local system)

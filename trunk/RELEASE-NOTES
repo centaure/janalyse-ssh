@@ -29,6 +29,12 @@ CAVEATS :
 
 ------------------------------------------------------------------
 0.9.5 (2012-11-05)
+
+ - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
+ - TODO : manage when sftp submodule is not available => throw the right exception
+
+------------------------------------------------------------------
+0.9.5-b2 (2012-11-05)
  - JSCH updated to 0.1.49
  - now using sbt 0.12.1
  - now using scalatest 2.0-M5
@@ -58,9 +64,6 @@ CAVEATS :
    define the following method :
    localmd5sum(filename:String):Option[String]
    
- - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
- - TODO : manage when sftp submodule is not available => throw the right exception
- 
 ------------------------------------------------------------------
 0.9.3
  - now using sbt-assembly 0.8.3

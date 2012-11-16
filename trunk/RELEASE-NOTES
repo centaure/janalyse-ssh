@@ -28,18 +28,20 @@ CAVEATS :
      Looks like linux SSHD comes with SFTP by default, but not AIX.
 
 ------------------------------------------------------------------
-0.9.5 INPG (2012-11-05)
+0.9.5 (2012-11-05)
  - JSCH updated to 0.1.49
  - now using sbt 0.12.1
- - now using scalatest 2.0-M4
+ - now using scalatest 2.0-M5
  - now using sbteclipse 2.1.0
- - add support for scala 2.10.0-RC1
+ - now using sbt assembly 0.8.5
+ - add support for scala 2.10.0-RC2
  - rexec.scala example script added 
  - Issue 1 Fixed: ssh keys reported by jendap
    SSHOptions new parameter : sshKeyFile: Option[String]=None, // if None, will look for default names. (sshUserDir is used)
  - new helper methods : 
    => ps : to get the list of running processes
-   => cat file : to get the content of a file through the cat command. Useful when trying to get special linux file content 
+   => cat file : to get the content of a file through the cat command.
+      Useful when trying to get special linux file content 
  - remote2Local(host:String, hport:Int) without local port specified; 
    the port is automatically chosen and returned
  - get access to a remote SSH through current SSH session

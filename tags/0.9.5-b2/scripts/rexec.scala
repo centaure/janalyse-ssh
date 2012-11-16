@@ -1,0 +1,54 @@
+#!/bin/sh
+exec java -jar jassh.jar -deprecation -savecompiled -usejavacp -nocompdaemon "$0" "$@"
+!#
+
+import fr.janalyse.ssh._
+import util.Properties
+
+if (args.size<2) {
+  println("""usage : rexec.scala command [user[:password]@]host[:port] ...""")
+  println("""  Of course prefer public key authentication, default behavior if no password is provided """)
+  println("""  example : rexec.scala "hostname" 192.168.1.10 toto@192.168.1.11 toto@192.168.1.12:22""")
+  System.exit(0)
+}
+
+// host | host:port | username@host |username:password@host | username@host:port | ... 
+val serverRE="""(?:(\w+)(?:[:](.*))?@)?((?:(?:\d+[.]){3}\d+)|(?:\w+))(?:[:](\d+))?""".r
+
+val cmd2exec=args.head
+val servers = args.tail map {
+  case serverRE(user, password, host, port) => 
+    SSHOptions(
+      username = Option(user).getOrElse(Properties.userName),
+      password = SSHPassword(Option(password)),
+      port     = Option(port).map(_.toInt).getOrElse(22)
+    )(host = host)
+  case notUnderstood => 
+    throw new RuntimeException("Couln'd understand remote host description : "+notUnderstood)
+}
+
+
+def rexec(server:SSHOptions, cmd2exec:String):String = 
+  SSH.once(server)(_.execute(cmd2exec))
+     .split("\n")
+     .map("%8s@%-16s: %s".format(server.username, server.host, _))
+     .mkString("\n")
+ 
+  
+var sys=new scala.sys.SystemProperties()
+sys+="actors.corePoolSize"->"25"
+
+  /*
+  // Of course this doesn't not show the intermediate results
+val ret = servers.toStream.map(rexec(_, cmd2exec))
+for (res <- ret.par) println(res)
+
+  */
+
+import actors.Actor._
+val caller=self
+for(server <- servers) actor { caller ! rexec(server, cmd2exec) }
+for(_ <- servers) receive {case msg => println(msg) }
+
+
+

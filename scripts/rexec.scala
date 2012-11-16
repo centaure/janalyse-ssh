@@ -19,11 +19,10 @@ val cmd2exec=args.head
 val servers = args.tail map {
   case serverRE(user, password, host, port) => 
     SSHOptions(
-      host     = host,
       username = Option(user).getOrElse(Properties.userName),
       password = SSHPassword(Option(password)),
       port     = Option(port).map(_.toInt).getOrElse(22)
-    )
+    )(host = host)
   case notUnderstood => 
     throw new RuntimeException("Couln'd understand remote host description : "+notUnderstood)
 }

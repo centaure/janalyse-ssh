@@ -796,34 +796,60 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     sb.toString()
   }
 
-  override def get(remoteFilename: String): Option[String] = {
-    //ssh.ftp { _ get remoteFilename }
-    ssh.scp { _ get remoteFilename }
+  private var firstHasFailed=false
+  
+  private def opWithFallback[T]( primary : => T, fallback: => T ):T = {
+    if (firstHasFailed) fallback
+    else {
+      try {
+        primary
+      } catch {
+        case x:RuntimeException if x.getMessage contains "SSH transfert protocol error" =>
+          firstHasFailed=true
+          fallback
+      }
+    }
   }
+  
+  override def get(remoteFilename: String): Option[String] =
+    opWithFallback( 
+        ssh.scp(_ get remoteFilename),
+        ssh.ftp(_ get remoteFilename)
+    )
 
-  override def getBytes(remoteFilename: String): Option[Array[Byte]] = {
-    //ssh.ftp { _ getBytes remoteFilename }
-    ssh.scp { _ getBytes remoteFilename }
-  }
+
+  override def getBytes(remoteFilename: String): Option[Array[Byte]] =
+    opWithFallback( 
+      ssh.scp( _ getBytes remoteFilename),
+      ssh.ftp( _ getBytes remoteFilename)
+    )
 
   override def receive(remoteFilename: String, toLocalFile: File) {
-    //ssh.ftp { _.receive(remoteFilename, toLocalFile) }
-    ssh.scp { _.receive(remoteFilename, toLocalFile) }
+    opWithFallback(
+      ssh.scp(_.receive(remoteFilename, toLocalFile)),
+      ssh.ftp(_.receive(remoteFilename, toLocalFile))
+    )
   }
 
   override def put(data: String, remoteDestination: String) {
-    //ssh.ftp { _ put (data, remoteDestination) }        
-    ssh.scp { _ put (data, remoteDestination) }
+    opWithFallback( 
+      ssh.scp(_ put (data, remoteDestination)),
+      ssh.ftp(_ put (data, remoteDestination))
+    )
   }
 
   override def putBytes(data: Array[Byte], remoteDestination: String) {
-    //ssh.ftp { _ putBytes (data, remoteDestination) }
-    ssh.scp { _ putBytes (data, remoteDestination) }
+    opWithFallback( 
+      ssh.scp(_ putBytes (data, remoteDestination)),
+      ssh.ftp(_ putBytes (data, remoteDestination))
+    )
   }
 
   override def send(fromLocalFile: File, remoteDestination: String) {
-    //ssh.ftp {_.send(fromLocalFile, remoteDestination)}
-    ssh.scp { _.send(fromLocalFile, remoteDestination) }
+    opWithFallback(
+      ssh.scp(_.send(fromLocalFile, remoteDestination)),
+      ssh.ftp(_.send(fromLocalFile, remoteDestination))
+    )
   }
 
   /**

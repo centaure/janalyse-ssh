@@ -28,10 +28,15 @@ CAVEATS :
      Looks like linux SSHD comes with SFTP by default, but not AIX.
 
 ------------------------------------------------------------------
-0.9.5 (2012-11-05)
+0.9.xx (2012-11-26)
 
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
+ 
+------------------------------------------------------------------
+0.9.5-b3 (2012-11-26)
+
+ - general transfert methods (available in SSH class) are now using automatic fallback, if SCP fails, then SFTP will be tryied.
 
 ------------------------------------------------------------------
 0.9.5-b2 (2012-11-05)

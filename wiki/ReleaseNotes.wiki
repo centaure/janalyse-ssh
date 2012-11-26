@@ -1,6 +1,10 @@
 #labels Featured
 {{{
 ------------------------------------------------------------------
+0.9.5-b3 (2012-11-26)
+ - general transfert methods (available in SSH class) are now using automatic fallback, if SCP fails, then SFTP will be tryied.
+
+------------------------------------------------------------------
 0.9.5-b2 (2012-11-05)
  - JSCH updated to 0.1.49
  - now using sbt 0.12.1

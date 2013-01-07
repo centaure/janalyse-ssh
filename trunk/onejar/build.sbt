@@ -4,7 +4,7 @@ seq(assemblySettings: _*)
 
 name := "janalyse-ssh-onejar"
 
-scalaVersion := "2.9.2"
+scalaVersion := "2.10.0"
 
 mainClass in assembly := Some("scala.tools.nsc.MainGenericRunner")
 
@@ -13,12 +13,12 @@ jarName in assembly := "jassh.jar"
 libraryDependencies <++=  scalaVersion { sv =>
        ("org.scala-lang" % "jline"           % sv  % "compile")  ::
        ("org.scala-lang" % "scala-compiler"  % sv  % "compile")  ::
-       ("org.scala-lang" % "scala-dbc"       % sv  % "compile")  ::
+//       ("org.scala-lang" % "scala-dbc"       % sv  % "compile")  ::
        ("org.scala-lang" % "scalap"          % sv  % "compile")  ::Nil
 //       ("org.scala-lang" % "scala-swing"     % sv  % "compile")  ::Nil
 }
 
-libraryDependencies += "fr.janalyse"   %% "janalyse-ssh" % "0.9.5-b3" % "compile"
+libraryDependencies += "fr.janalyse"   %% "janalyse-ssh" % "0.9.6" % "compile"
 
 resolvers += "JAnalyse Repository" at "http://www.janalyse.fr/repository/"
 

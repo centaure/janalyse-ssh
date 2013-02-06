@@ -481,7 +481,7 @@ trait ShellOperations extends CommonOperations {
   }
 
   /**
-   * File system remaining space in MB
+   * get file rights string (such as 'drwxr-xr-x')
    */
   def fileRights(path:String):Option[String] = {
     uname.toLowerCase match {

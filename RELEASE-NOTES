@@ -33,6 +33,8 @@ CAVEATS :
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
  
+ - ChannelExec now is using a virtual tty by default
+ - new commands : fsFreeSpace & fileRights
 
 ------------------------------------------------------------------
 0.9.6 (2013-01-07)

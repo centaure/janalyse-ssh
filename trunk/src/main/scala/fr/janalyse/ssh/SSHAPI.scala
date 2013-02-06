@@ -976,6 +976,7 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
     val stdout = ch.getInputStream()
     val stderr = ch.getErrStream()
     val stdin = ch.getOutputStream()
+    ch.setPty(true)
     ch.connect(ssh.options.connectTimeout.toInt)
     (ch, stdout, stderr, stdin)
   }

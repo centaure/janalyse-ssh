@@ -465,6 +465,42 @@ trait ShellOperations extends CommonOperations {
     executeAndTrim(cmd).toInt == 0
   }
 
+  
+  /**
+   * File system remaining space in MB
+   */
+  def fsFreeSpace(path:String):Option[Int] = {
+    uname.toLowerCase match {
+      case "linux"|"aix" => 
+        executeAndTrimSplit(s"""df -Pm '${path}'""").drop(1).headOption.flatMap { line =>
+          line.split("""\s+""").toList.drop(3).headOption.map(_.toInt)
+        }
+      case "sunos" => None // TODO add support for solaris 
+      case _ => None
+    }
+  }
+
+  /**
+   * File system remaining space in MB
+   */
+  def fileRights(path:String):Option[String] = {
+    uname.toLowerCase match {
+      case "linux" => 
+        executeAndTrim(s"test '${path}' && stat --format '%A' '${path}'") match {
+          case "" => None
+          case x  => Some(x)
+        }
+      case "aix"   => 
+        executeAndTrim(s"test '${path}' && ls -lad '${path}'") match {
+          case "" => None
+          case x  => x.split("""\s+""",2).headOption
+        }
+      case "sunos" => None // TODO add support for solaris 
+      case _ => None
+    }
+  }
+  
+
 }
 
 // ==========================================================================================

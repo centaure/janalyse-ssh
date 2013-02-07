@@ -38,7 +38,6 @@ import java.text.SimpleDateFormat
  * @author David Crosson
  */
 class SSHCommand(val cmd: String) {
-  def §§(implicit ssh: SSH) = ssh.shell { _ execute this }
 }
 
 /**
@@ -56,7 +55,6 @@ object SSHCommand {
  * @author David Crosson
  */
 class SSHBatch(val cmdList: Iterable[String]) {
-  def §§(implicit ssh: SSH) = ssh.shell { _ executeAll this }
 }
 
 /**
@@ -272,8 +270,12 @@ trait ShellOperations extends CommonOperations {
    * @param filename file name
    * @return md5sum as an optional String, or None if filename was not found
    */
-  def md5sum(filename: String): Option[String] =
-    genoptcmd("""md5sum "%s" """.format(filename)).map(_.split("""\s+""")(0))
+  def md5sum(filename: String): Option[String] = {
+    uname.toLowerCase() match {
+      case "darwin"=> genoptcmd(s"""md5 "$filename" """).map(_.split("=",2)(1).trim)
+      case _ => genoptcmd(s"""md5sum "$filename" """).map(_.split("""\s+""")(0).trim)
+    }
+  }
 
   /**
    * Remote file sha1sum
@@ -281,7 +283,11 @@ trait ShellOperations extends CommonOperations {
    * @return sha1sum as an optional String, or None if filename was not found
    */
   def sha1sum(filename: String): Option[String] =
-    genoptcmd("""sha1sum "%s" """.format(filename)).map(_.split("""\s+""")(0))
+    uname.toLowerCase() match {
+      case "darwin"=> genoptcmd(s"""shasum "$filename" """).map(_.split("""\s+""")(0))
+      case _ => genoptcmd(s"""sha1sum "$filename" """).map(_.split("""\s+""")(0))
+    }
+    
 
   /**
    * *nix system name (Linux, AIX, SunOS, ...)
@@ -300,7 +306,10 @@ trait ShellOperations extends CommonOperations {
    * @param dirname directory to look into
    * @return current directory files as an Iterable
    */
-  def ls(dirname: String): Iterable[String] = executeAndTrimSplit("""ls --format=single-column "%s" """.format(dirname))
+  def ls(dirname: String): Iterable[String] = {
+    //executeAndTrimSplit("""ls --format=single-column "%s" """.format(dirname))
+    executeAndTrimSplit("""ls "%s" | cat """.format(dirname))
+  }
 
   /**
    * Get current working directory

@@ -129,7 +129,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       var x=List.empty[String]
       
       def receiver(data:Option[String]) {data foreach {d => x = x :+ d} }
-      val executor = ssh.run("vmstat 1 5", receiver)
+      val executor = ssh.run("iostat 1 5", receiver)
 
       executor.waitForEnd
 
@@ -199,7 +199,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   }
   
   //==========================================================================================================
-  test("simplified usage with sshOptions as Option") {
+  ignore("simplified usage with sshOptions as Option") { // TODO - not OK for Darwin
     val cnxinfo = Some(sshopts)
     val stat = SSH.ftp(cnxinfo) {_.get("/proc/stat")}
     
@@ -232,7 +232,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       
       // now tests the utilities methods
       import sh._
-      uname                   should equal("Linux")
+      uname.toLowerCase       should (equal("linux") or equal("darwin") or equal("aix") or equal("sunos"))
       hostname                should equal(rhostname)
       fileSize(testfile)      should equal(Some(4))
       md5sum(testfile)        should equal(Some("f71dbe52628a3f83a77ab494817525c6"))
@@ -249,7 +249,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       isDirectory(testfile)   should equal(false)
       exists(testfile)        should equal(true)
       isExecutable(testfile)  should equal(false)
-      findAfterDate(".", started) should have size(1)
+      findAfterDate(".", started) should (have size(1) or have size(2)) // Added 2 because of .bash_history
       val reftime = now.getTime
       date().getTime          should (be>(reftime-1000) and be<(reftime+1000))
     }

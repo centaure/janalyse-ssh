@@ -35,6 +35,7 @@ CAVEATS :
  
  - ChannelExec now is using a virtual tty by default
  - new commands : fsFreeSpace & fileRights
+ - minor updates for darwin (mac os x) support
 
 ------------------------------------------------------------------
 0.9.6 (2013-01-07)

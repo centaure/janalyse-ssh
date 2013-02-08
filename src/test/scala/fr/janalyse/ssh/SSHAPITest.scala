@@ -24,6 +24,7 @@ import scala.io.Source
 import scala.util.Properties
 import java.io.File
 import java.io.IOException
+import scala.collection.parallel.ForkJoinTaskSupport
 
 @RunWith(classOf[JUnitRunner])
 class SSHAPITest extends FunSuite with ShouldMatchers {
@@ -134,7 +135,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       executor.waitForEnd
 
       x.zipWithIndex map { case (l, i) => info("%d : %s".format(i, l)) }
-      x.size should equal(7)      
+      x.size should be >(7)      
     }
   }
 
@@ -168,11 +169,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     val cnxinfos = List(sshopts, sshopts, sshopts, sshopts, sshopts)
     val sshs   = cnxinfos.par map {SSH(_)}
     
-    // Configuring parallelism
-    // Scala 2.9
-    //collection.parallel.ForkJoinTasks.defaultForkJoinPool.setParallelism(6)
-    // Scala 2.10
-    //sshs.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(6))
+    sshs.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(6))
     
     val unames = sshs map {_ execute "date; sleep 5"}
     info(unames.mkString("----"))

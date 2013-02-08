@@ -30,6 +30,8 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.locks.LockSupport
 import java.util.Date
 import java.text.SimpleDateFormat
+import com.typesafe.scalalogging.slf4j.Logging
+
 
 // ==========================================================================================
 
@@ -203,10 +205,68 @@ trait TransfertOperations extends CommonOperations {
 
 // ==========================================================================================
 
+  trait Process {
+    val pid: Int
+    val ppid: Int
+    val user: String
+    val cmdline: String
+    private val tokens = cmdline.split("""\s+""").toList filter { _.size > 0 }
+    val cmd = tokens.head
+    val args = tokens.tail.toList
+  }
+  
+  case class ProcessTime(days:Int, hours:Int, minutes:Int, seconds:Int) {
+    val ellapsedInS = days*24*3600 + hours*3600 + minutes*60 + seconds
+  }
+  object ProcessTime {
+    def apply(spec:String):ProcessTime = {
+      val re1="""(\d+)""".r
+      val re2="""(\d+):(\d+)""".r
+      val re3="""(\d+):(\d+):(\d+)""".r
+      val re4="""(\d+)-(\d+):(\d+):(\d+)""".r
+      spec match {
+        case re1(s) => ProcessTime(0,0,0,s.toInt)
+        case re2(m,s) => ProcessTime(0,0,m.toInt,s.toInt)
+        case re3(h,m,s) => ProcessTime(0,h.toInt,m.toInt,s.toInt)
+        case re4(d,h,m,s) => ProcessTime(d.toInt,h.toInt,m.toInt,s.toInt)
+        case _ => ProcessTime(0,0,0,0)
+      }
+    }
+  }
+  
+  case class AIXProcess(
+        pid: Int,
+        ppid: Int,
+        user: String,
+        cmdline: String
+  ) extends Process
+  
+  case class SunOSProcess(
+        pid: Int,
+        ppid: Int,
+        user: String,
+        cmdline: String
+  ) extends Process
+  
+  case class LinuxProcess(
+        pid: Int,
+        ppid: Int,
+        user: String,
+        state:String,
+        rss: Int,             // ResidentSizeSize (Ko)
+        vsz: Int,             // virtual memory size of the process (Ko)
+        etime: ProcessTime,   // Ellapsed time since start   [DD-]hh:mm:ss
+        cputime: ProcessTime, // CPU time used since start [[DD-]hh:]mm:ss
+        cmdline: String
+  ) extends Process
+
+
+
+
 /**
  * ShellOperations defines generic shell operations and common shell commands shortcuts
  */
-trait ShellOperations extends CommonOperations {
+trait ShellOperations extends CommonOperations with Logging {
 
   /**
    * Execute the current command and return the result as a string
@@ -432,28 +492,72 @@ trait ShellOperations extends CommonOperations {
    *
    *
    */
-  //ps -eo pid,ppid,user,group,thcount,rss,%cpu,etime,cputime,cmd
-  case class Process(pid: Int, ppid: Int, user: String, cmdline: String) {
-    private val tokens = cmdline.split("""\s+""").toList filter { _.size > 0 }
-    val cmd = tokens.head
-    val args = tokens.tail.toList
-  }
-
+  
   def ps(): List[Process] = {
-    val uname = executeAndTrim("uname")
-    val pscmd = uname match {
-      case "Linux" => "ps -eo pid,ppid,user,cmd | grep -v grep"
-      case "AIX" | "SunOS" => "ps -eo pid,ppid,ruser,args | grep -v grep"
-      case _ => "ps -eo pid,ppid,user,cmd | grep -v grep"
+    def processLinesToMap(pscmd:String, format:String):List[Map[String,String]] = {
+        val fields = format.split(",")
+        executeAndTrimSplit(pscmd)
+            .toList
+            .tail     // Removing header line
+            .map(_ trim)
+            .map(_.split("""\s+""", fields.size))
+            .filter(_.size == fields.size)
+            .map(fields zip _)
+            .map(_.toMap)
     }
-    val numRE = """(\d+)"""r
-    val processes = executeAndTrimSplit(pscmd).toList.tail map { _ trim } flatMap { l: String =>
-      (l.split("""\s+""", 4)) match {
-        case Array(numRE(pid), numRE(ppid), user, cmdline) => Process(pid.toInt, ppid.toInt, user, cmdline) :: Nil
-        case notUnderstood => println("%s - %s - Process not recognized: %s".format(options.host, pscmd, notUnderstood.mkString(" "))); Nil
-      }
+    executeAndTrim("uname").toLowerCase match {
+      case "linux" =>
+        val format = "pid,ppid,user,s,vsz,rss,etime,cputime,cmd"
+        val cmd = s"ps -eo $format | grep -v grep | cat"
+        val states = Map(
+           "D"->"UninterruptibleSleep",
+           "R"->"Running",
+           "S"->"InterruptibleSleep",
+           "T"->"Stopped",
+           "W"->"Paging", //   paging (not valid since the 2.6.xx kernel)
+           "X"->"Dead",
+           "Z"->"Zombie"
+        ) 
+          
+        processLinesToMap(cmd,format).map { m =>
+          LinuxProcess(
+              pid     = m("pid").toInt,
+              ppid    = m("ppid").toInt,
+              user    = m("user"),
+              state   = states.get(m("s")).getOrElse(m("s")),
+              rss     = m("rss").toInt,
+              vsz     = m("vsz").toInt,
+              etime   = ProcessTime(m("etime")),
+              cputime = ProcessTime(m("cputime")),
+              cmdline = m("cmd")
+          )
+        }
+      case "aix" =>
+        val format = "pid,ppid,ruser,args"
+        val cmd = s"ps -eo $format | grep -v grep | cat"
+        processLinesToMap(cmd,format).map { m =>
+          AIXProcess(
+              pid     = m("pid").toInt,
+              ppid    = m("ppid").toInt,
+              user    = m("user"),
+              cmdline = m("args")
+          )
+        }
+      case "sunos" =>
+        val format = "pid,ppid,ruser,args"
+        val cmd = s"ps -eo $format | grep -v grep | cat"
+        processLinesToMap(cmd,format).map { m =>
+          SunOSProcess(
+              pid     = m("pid").toInt,
+              ppid    = m("ppid").toInt,
+              user    = m("user"),
+              cmdline = m("args")
+          )
+        }
+      case x@_ =>
+        logger.error("Unsupported operating system for ps method")
+        List.empty[Process]
     }
-    processes
   }
 
   /**

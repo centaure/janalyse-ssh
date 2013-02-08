@@ -8,10 +8,11 @@ organizationHomepage := Some(new URL("http://www.janalyse.fr"))
 
 scalaVersion := "2.10.0"
 
-crossScalaVersions := Seq("2.9.2", "2.10.0")
+crossScalaVersions := Seq("2.10.0")
 
 libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest" % "2.0.M5b" % "test"
+    "com.typesafe" %% "scalalogging-slf4j" % "1.0.0"
+   ,"org.scalatest" %% "scalatest" % "2.0.M5b" % "test"
    ,"com.jcraft" % "jsch" % "0.1.49" % "compile"
    ,"junit" % "junit" % "4.10" % "test"
 )

@@ -36,8 +36,11 @@ CAVEATS :
  - ChannelExec now is using a virtual tty by default
  - new commands : fsFreeSpace & fileRights
  - minor updates for darwin (mac os x) support
- - OS process modeling => LinuxProcess AIXProcess and SunOSProcess
  - ps() command enhancements 
+   + OS process modeling => LinuxProcess, AIXProcess, SunOSProcess, DarwinProcess
+   + LinuxProcessState, DarwinProcessState
+   + ps test case added
+ - logging support added (using scala-logging)
 
 ------------------------------------------------------------------
 0.9.6 (2013-01-07)

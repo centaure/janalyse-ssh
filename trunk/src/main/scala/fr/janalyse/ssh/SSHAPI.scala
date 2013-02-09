@@ -234,6 +234,58 @@ trait TransfertOperations extends CommonOperations {
     }
   }
   
+  trait ProcessState {
+    val name:String
+  }
+  
+  case class LinuxProcessState(
+      name:String,
+      extra:String
+  ) extends ProcessState
+  
+  object LinuxProcessState{
+        val states = Map(
+           'D'->"UninterruptibleSleep",
+           'R'->"Running",
+           'S'->"InterruptibleSleep",
+           'T'->"Stopped",
+           'W'->"Paging", //   paging (not valid since the 2.6.xx kernel)
+           'X'->"Dead",
+           'Z'->"Zombie"
+        ) 
+
+    def fromSpec(spec:String):LinuxProcessState = {
+      val name = spec.headOption.flatMap(states get _) getOrElse "UnknownState"
+      val extra = if (spec.size >0) spec.tail else ""
+      new LinuxProcessState(name, extra)
+    }
+  }
+  
+  
+  case class DarwinProcessState(
+      name:String,
+      extra:String
+  ) extends ProcessState
+
+  object DarwinProcessState {
+        val states = Map(
+               'I'->"Idle",//       Marks a process that is idle (sleeping for longer than about 20 seconds).
+               'R'->"Running",//       Marks a runnable process.
+               'S'->"Sleeping",//       Marks a process that is sleeping for less than about 20 seconds.
+               'T'->"Stopped",//       Marks a stopped process.
+               'U'->"UninterruptibleSleep",//       Marks a process in uninterruptible wait.
+               'Z'->"Zombie"//       Marks a dead process (a ``zombie'').
+
+        ) 
+
+    def fromSpec(spec:String):DarwinProcessState = {
+      val name = spec.headOption.flatMap(states get _) getOrElse "UnknownState"
+      val extra = if (spec.size >0) spec.tail else ""
+      new DarwinProcessState(name, extra)
+    }
+  }
+  
+  
   case class AIXProcess(
         pid: Int,
         ppid: Int,
@@ -248,11 +300,12 @@ trait TransfertOperations extends CommonOperations {
         cmdline: String
   ) extends Process
   
+  
   case class LinuxProcess(
         pid: Int,
         ppid: Int,
         user: String,
-        state:String,
+        state:LinuxProcessState,
         rss: Int,             // ResidentSizeSize (Ko)
         vsz: Int,             // virtual memory size of the process (Ko)
         etime: ProcessTime,   // Ellapsed time since start   [DD-]hh:mm:ss
@@ -260,6 +313,18 @@ trait TransfertOperations extends CommonOperations {
         cmdline: String
   ) extends Process
 
+  
+  case class DarwinProcess(
+        pid: Int,
+        ppid: Int,
+        user: String,
+        state:DarwinProcessState,
+        rss: Int,             // ResidentSizeSize (Ko)
+        vsz: Int,             // virtual memory size of the process (Ko)
+        etime: ProcessTime,   // Ellapsed time since start   [DD-]hh:mm:ss
+        cputime: ProcessTime, // CPU time used since start [[DD-]hh:]mm:ss
+        cmdline: String
+  ) extends Process
 
 
 
@@ -507,24 +572,15 @@ trait ShellOperations extends CommonOperations with Logging {
     }
     executeAndTrim("uname").toLowerCase match {
       case "linux" =>
-        val format = "pid,ppid,user,s,vsz,rss,etime,cputime,cmd"
+        val format = "pid,ppid,user,stat,vsz,rss,etime,cputime,cmd"
         val cmd = s"ps -eo $format | grep -v grep | cat"
-        val states = Map(
-           "D"->"UninterruptibleSleep",
-           "R"->"Running",
-           "S"->"InterruptibleSleep",
-           "T"->"Stopped",
-           "W"->"Paging", //   paging (not valid since the 2.6.xx kernel)
-           "X"->"Dead",
-           "Z"->"Zombie"
-        ) 
           
         processLinesToMap(cmd,format).map { m =>
           LinuxProcess(
               pid     = m("pid").toInt,
               ppid    = m("ppid").toInt,
               user    = m("user"),
-              state   = states.get(m("s")).getOrElse(m("s")),
+              state   = LinuxProcessState.fromSpec(m("stat")),
               rss     = m("rss").toInt,
               vsz     = m("vsz").toInt,
               etime   = ProcessTime(m("etime")),
@@ -554,11 +610,30 @@ trait ShellOperations extends CommonOperations with Logging {
               cmdline = m("args")
           )
         }
+      case "darwin" =>
+        val format = "pid,ppid,user,state,vsz,rss,etime,cputime,args"
+        val cmd = s"ps -eo $format | grep -v grep | cat"
+        processLinesToMap(cmd,format).map { m =>
+          DarwinProcess(
+             pid     = m("pid").toInt,
+              ppid    = m("ppid").toInt,
+              user    = m("user"),
+              state   = DarwinProcessState.fromSpec(m("state")),
+              rss     = m("rss").toInt,
+              vsz     = m("vsz").toInt,
+              etime   = ProcessTime(m("etime")),
+              cputime = ProcessTime(m("cputime")),
+              cmdline = m("args")
+
+          )
+        }
+        
       case x@_ =>
         logger.error("Unsupported operating system for ps method")
         List.empty[Process]
     }
   }
+  
 
   /**
    * internal helper method
@@ -584,7 +659,7 @@ trait ShellOperations extends CommonOperations with Logging {
    */
   def fsFreeSpace(path:String):Option[Int] = {
     uname.toLowerCase match {
-      case "linux"|"aix" => 
+      case "linux"|"aix"|"darwin" => 
         executeAndTrimSplit(s"""df -Pm '${path}'""").drop(1).headOption.flatMap { line =>
           line.split("""\s+""").toList.drop(3).headOption.map(_.toInt)
         }
@@ -603,7 +678,7 @@ trait ShellOperations extends CommonOperations with Logging {
           case "" => None
           case x  => Some(x)
         }
-      case "aix"   => 
+      case "aix"|"darwin"   => 
         executeAndTrim(s"test '${path}' && ls -lad '${path}'") match {
           case "" => None
           case x  => x.split("""\s+""",2).headOption

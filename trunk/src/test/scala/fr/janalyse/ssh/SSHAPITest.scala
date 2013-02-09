@@ -135,7 +135,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       executor.waitForEnd
 
       x.zipWithIndex map { case (l, i) => info("%d : %s".format(i, l)) }
-      x.size should be >(7)      
+      x.size should be >=(6)      
     }
   }
 
@@ -158,7 +158,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       }
       // output streaming
       def receiver(data:Option[String]) {data foreach {println(_)}}
-      val executor = ssh.run("vmstat 1 3", receiver)
+      val executor = ssh.run("iostat 1 3", receiver)
       executor.waitForEnd
     }
   }
@@ -249,6 +249,9 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       findAfterDate(".", started) should (have size(1) or have size(2)) // Added 2 because of .bash_history
       val reftime = now.getTime
       date().getTime          should (be>(reftime-1000) and be<(reftime+1000))
+      fsFreeSpace("/tmp")     should be('defined)
+      fileRights("/tmp")      should be('defined)
+      ps().filter(_.cmdline contains "java").size should be >(0)
     }
   }
 

@@ -25,6 +25,7 @@ import scala.util.Properties
 import java.io.File
 import java.io.IOException
 import scala.collection.parallel.ForkJoinTaskSupport
+import org.scalatest.OptionValues._
 
 @RunWith(classOf[JUnitRunner])
 class SSHAPITest extends FunSuite with ShouldMatchers {
@@ -252,6 +253,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       fsFreeSpace("/tmp")     should be('defined)
       fileRights("/tmp")      should be('defined)
       ps().filter(_.cmdline contains "java").size should be >(0)
+      du("/bin").value        should be >(0L)
     }
   }
 

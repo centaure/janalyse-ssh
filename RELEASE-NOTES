@@ -34,7 +34,10 @@ CAVEATS :
  - TODO : manage when sftp submodule is not available => throw the right exception
  
  - ChannelExec now is using a virtual tty by default
- - new commands : fsFreeSpace & fileRights
+ - new commands : 
+   + fsFreeSpace
+   + fileRights
+   + du
  - minor updates for darwin (mac os x) support
  - ps() command enhancements 
    + OS process modeling => LinuxProcess, AIXProcess, SunOSProcess, DarwinProcess

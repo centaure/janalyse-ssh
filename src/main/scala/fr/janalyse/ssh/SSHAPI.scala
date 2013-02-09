@@ -388,15 +388,26 @@ trait ShellOperations extends CommonOperations with Logging {
    * @return optional file size, or None if filename was not found
    */
   def fileSize(filename: String): Option[Long] =
-    genoptcmd("""ls -ld "%s" """.format(filename)).map(_.split("""\s+""")(4).toLong)
+    genoptcmd(s"""ls -ld "$filename" """).map(_.split("""\s+""")(4).toLong)
 
+  /**
+   * Remote tree file size in kilobytes
+   * @param filename file name
+   * @return optional file tree size in kilobytes, or None if filename was not found
+   */
+ def du(filename:String): Option[Long] = {
+    genoptcmd(s"""du -k -d 0 "$filename" """)
+        .flatMap(_.split("""\s+""",2).headOption)
+        .map(_.toLong)
+  }
+    
   /**
    * Remote file md5sum
    * @param filename file name
    * @return md5sum as an optional String, or None if filename was not found
    */
   def md5sum(filename: String): Option[String] = {
-    uname.toLowerCase() match {
+    osname match {
       case "darwin"=> genoptcmd(s"""md5 "$filename" """).map(_.split("=",2)(1).trim)
       case _ => genoptcmd(s"""md5sum "$filename" """).map(_.split("""\s+""")(0).trim)
     }
@@ -408,7 +419,7 @@ trait ShellOperations extends CommonOperations with Logging {
    * @return sha1sum as an optional String, or None if filename was not found
    */
   def sha1sum(filename: String): Option[String] =
-    uname.toLowerCase() match {
+    osname match {
       case "darwin"=> genoptcmd(s"""shasum "$filename" """).map(_.split("""\s+""")(0))
       case _ => genoptcmd(s"""sha1sum "$filename" """).map(_.split("""\s+""")(0))
     }
@@ -420,6 +431,12 @@ trait ShellOperations extends CommonOperations with Logging {
    */
   def uname: String = executeAndTrim("""uname 2>/dev/null""")
 
+  /**
+   * *nix os name (linux, aix, sunos, darwin, ...)
+   * @return remote *nix system name
+   */
+  def osname: String = uname.toLowerCase()
+  
   /**
    * List files in specified directory
    * @return current directory files as an Iterable
@@ -494,7 +511,7 @@ trait ShellOperations extends CommonOperations with Logging {
   def findAfterDate(root: String, after: Date): Iterable[String] = {
     def ellapsedInMn(thatDate: Date): Long = (date().getTime - thatDate.getTime) / 1000 / 60
     //deprecated : // def ellapsedInMn(thatDate:Date):Long =  (new Date().getTime - thatDate.getTime)/1000/60
-    val findpattern = uname.toLowerCase match {
+    val findpattern = osname match {
       case "linux" | "aix" => """find %s -follow -type f -mmin '-%d' 2>/dev/null""" // "%s" => %s to enable file/dir patterns
       case "sunos" => throw new RuntimeException("SunOS not supported - find command doesn't support -mmin parameter")
       case _ => """find %s -type f -mmin '-%d' 2>/dev/null"""
@@ -570,7 +587,7 @@ trait ShellOperations extends CommonOperations with Logging {
             .map(fields zip _)
             .map(_.toMap)
     }
-    executeAndTrim("uname").toLowerCase match {
+    osname match {
       case "linux" =>
         val format = "pid,ppid,user,stat,vsz,rss,etime,cputime,cmd"
         val cmd = s"ps -eo $format | grep -v grep | cat"
@@ -658,7 +675,7 @@ trait ShellOperations extends CommonOperations with Logging {
    * File system remaining space in MB
    */
   def fsFreeSpace(path:String):Option[Int] = {
-    uname.toLowerCase match {
+    osname match {
       case "linux"|"aix"|"darwin" => 
         executeAndTrimSplit(s"""df -Pm '${path}'""").drop(1).headOption.flatMap { line =>
           line.split("""\s+""").toList.drop(3).headOption.map(_.toInt)
@@ -672,7 +689,7 @@ trait ShellOperations extends CommonOperations with Logging {
    * get file rights string (such as 'drwxr-xr-x')
    */
   def fileRights(path:String):Option[String] = {
-    uname.toLowerCase match {
+    osname match {
       case "linux" => 
         executeAndTrim(s"test '${path}' && stat --format '%A' '${path}'") match {
           case "" => None

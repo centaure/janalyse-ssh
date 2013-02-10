@@ -34,7 +34,8 @@ CAVEATS :
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
  - TODO : ChannelExec use of virtual tty must be configurable, as without performance are quite better
-
+ - TODO : remove all println, use scalalogging...
+ 
 ------------------------------------------------------------------
 0.9.7 (2013-02-10)
 

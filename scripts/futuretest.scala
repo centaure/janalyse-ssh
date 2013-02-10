@@ -1,6 +1,7 @@
 #!/bin/sh
 exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
 !#
+// jassh.jar can be downloaded here : http://code.google.com/p/janalyse-ssh/
 
 import jassh._
 
@@ -8,7 +9,7 @@ import concurrent._
 import duration._
 import scala.util._
 
-val parallelismLevel=50
+val parallelismLevel=if (args.size>0) args(0).toInt else 50
 
 /* For local test : 
  * /etc/ssh/sshd_config

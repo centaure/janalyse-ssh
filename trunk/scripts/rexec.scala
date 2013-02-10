@@ -34,21 +34,7 @@ def rexec(server:SSHOptions, cmd2exec:String):String =
      .map("%8s@%-16s: %s".format(server.username, server.host, _))
      .mkString("\n")
  
-  
-var sys=new scala.sys.SystemProperties()
-sys+="actors.corePoolSize"->"25"
-
-  /*
-  // Of course this doesn't not show the intermediate results
+// Of course this doesn't not show the intermediate results
 val ret = servers.toStream.map(rexec(_, cmd2exec))
 for (res <- ret.par) println(res)
-
-  */
-
-import actors.Actor._
-val caller=self
-for(server <- servers) actor { caller ! rexec(server, cmd2exec) }
-for(_ <- servers) receive {case msg => println(msg) }
-
-
 

@@ -146,3 +146,7 @@ I've made available a large set of methods to simplify common usages, all availa
  * isDirectory : is the remote file a directory ?
  * isFile : is the remote file a regular file ?
  * isExecutable : is the remote file executable ?
+ * du : how many kilobytes used by a given file tree
+ * ps : get process list
+ * fsFreeSpace : how many space remain free in the filesystem of the give file
+ * fileRights : return file rights for the given filepath

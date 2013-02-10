@@ -27,12 +27,18 @@ CAVEATS :
      from one system to an other.
      Looks like linux SSHD comes with SFTP by default, but not AIX.
 
+
 ------------------------------------------------------------------
-0.9.xx (2013-xx-yy)
+0.9.x (2013-xx-yy)
 
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
- 
+ - TODO : ChannelExec use of virtual tty must be configurable, as without performance are quite better
+
+------------------------------------------------------------------
+0.9.7 (2013-02-10)
+
+ - scala >=2.10 is now mandatory
  - ChannelExec now is using a virtual tty by default
  - new commands : 
    + fsFreeSpace

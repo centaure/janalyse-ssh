@@ -409,6 +409,7 @@ trait ShellOperations extends CommonOperations with Logging {
   def md5sum(filename: String): Option[String] = {
     osname match {
       case "darwin"=> genoptcmd(s"""md5 "$filename" """).map(_.split("=",2)(1).trim)
+      case "aix"   => genoptcmd(s"""csum -h MD5 "$filename" """).map(_.split("""\s+""")(0).trim)
       case _ => genoptcmd(s"""md5sum "$filename" """).map(_.split("""\s+""")(0).trim)
     }
   }
@@ -421,6 +422,7 @@ trait ShellOperations extends CommonOperations with Logging {
   def sha1sum(filename: String): Option[String] =
     osname match {
       case "darwin"=> genoptcmd(s"""shasum "$filename" """).map(_.split("""\s+""")(0))
+      case "aix"   => genoptcmd(s"""csum -h SHA1 "$filename" """).map(_.split("""\s+""")(0).trim)
       case _ => genoptcmd(s"""sha1sum "$filename" """).map(_.split("""\s+""")(0))
     }
     
@@ -674,11 +676,11 @@ trait ShellOperations extends CommonOperations with Logging {
   /**
    * File system remaining space in MB
    */
-  def fsFreeSpace(path:String):Option[Int] = {
+  def fsFreeSpace(path:String):Option[Double] = {
     osname match {
       case "linux"|"aix"|"darwin" => 
         executeAndTrimSplit(s"""df -Pm '${path}'""").drop(1).headOption.flatMap { line =>
-          line.split("""\s+""").toList.drop(3).headOption.map(_.toInt)
+          line.split("""\s+""").toList.drop(3).headOption.map(_.toDouble)
         }
       case "sunos" => None // TODO add support for solaris 
       case _ => None

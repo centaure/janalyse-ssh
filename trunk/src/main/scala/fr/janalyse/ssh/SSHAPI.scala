@@ -1657,9 +1657,9 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     private var lastPromptChar = prompt.last
     
     private def check4prompt():Boolean = {
-       consumerAppender.endsWith(readyMessage) && 
-      !consumerAppender.endsWith("'" + readyMessage) &&
-      !consumerAppender.endsWith("PS1=" + readyMessage)
+       consumerAppender.endsWith(readyMessage)
+      && !consumerAppender.endsWith("'" + readyMessage)
+      //&& !consumerAppender.endsWith("PS1=" + readyMessage)
     }
     
     def write(b: Int) {

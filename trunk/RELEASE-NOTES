@@ -40,6 +40,9 @@ CAVEATS :
    improve SSHShell => revisits command result capture system => 'env' for example is not working... 
  
  - AIX sha1sum & md5sum fix.
+ - new commands :
+   + env
+ - new test cases 
 
 ------------------------------------------------------------------
 0.9.7 (2013-02-10)

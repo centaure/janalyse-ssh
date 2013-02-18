@@ -231,6 +231,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       // now tests the utilities methods
       import sh._
       uname.toLowerCase       should (equal("linux") or equal("darwin") or equal("aix") or equal("sunos"))
+      osname                  should (equal("linux") or equal("darwin") or equal("aix") or equal("sunos"))
+      env.size                should be > (0)
       hostname                should equal(rhostname)
       fileSize(testfile)      should equal(Some(4))
       md5sum(testfile)        should equal(Some("f71dbe52628a3f83a77ab494817525c6"))
@@ -426,7 +428,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
   
-    //==========================================================================================================
+  //==========================================================================================================
   test("sharing SSH options...") {
     val common = SSHOptions(username="test", password="testtest")_
     
@@ -434,5 +436,14 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     
   }
 
+  //==========================================================================================================
+  test("env command test") {
+    SSH.shell(sshopts) {sh =>
+      sh.execute("export ABC=1")
+      sh.execute("export XYZ=999")
+      val envmap = sh.env
+      envmap.keys should ( contain("ABC") and contain("XYZ") )
+    }
+  }
 }
 

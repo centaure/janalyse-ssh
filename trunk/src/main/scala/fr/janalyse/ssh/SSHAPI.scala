@@ -438,7 +438,21 @@ trait ShellOperations extends CommonOperations with Logging {
    * @return remote *nix system name
    */
   def osname: String = uname.toLowerCase()
+
   
+  /**
+   * remote environment variables 
+   * @return map of environment variables
+   */
+  def env: Map[String,String] = {
+    for {
+      line <- execute("env").split("""\n""")
+      EnvRE(key, value) <- EnvRE.findFirstIn(line)
+      } yield {key -> value}
+  }.toMap
+  
+  private val EnvRE="""([^=]+)=(.*)""".r
+
   /**
    * List files in specified directory
    * @return current directory files as an Iterable
@@ -1539,6 +1553,8 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
   val defaultPrompt = """-PRMT-: """
   val customPromptGiven = ssh.options.prompt.isDefined
   val prompt = ssh.options.prompt getOrElse defaultPrompt
+  
+  private val tokenStream = util.Random.alphanumeric
 
   val options = ssh.options
 

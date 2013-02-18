@@ -35,10 +35,7 @@ CAVEATS :
  - TODO : manage when sftp submodule is not available => throw the right exception
  - TODO : ChannelExec use of virtual tty must be configurable, as without performance are quite better
  - TODO : remove all println, use scalalogging...
- 
- - TODO HIGH PRIORITY : 
-   improve SSHShell => revisits command result capture system => 'env' for example is not working... 
- 
+  
  - AIX sha1sum & md5sum fix.
  - new commands :
    + env

@@ -1650,6 +1650,8 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
       //Thread.sleep(500) // TODO : Bad but Mandatory to get some response from JSCH => Find a better way
       if (ready == false) readyQueue.take()
     }
+    private val readyMessageQuotePrefix="'"+readyMessage
+    private val readyMessageEqualPrefix="="+readyMessage
 
     private val consumerAppender = new StringBuilder(8192)
     private var searchForPromptIndex = 0
@@ -1660,13 +1662,13 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
         consumerAppender.append(b.toChar) // TODO - Add charset support
         if (!ready) { // We want the response and only the response, not the echoed command, that's why the quote is prefixed
           if (consumerAppender.endsWith(readyMessage) && 
-              !consumerAppender.endsWith("'" + readyMessage) &&
-              !consumerAppender.endsWith("=" + readyMessage)) {
+              !consumerAppender.endsWith(readyMessageQuotePrefix) &&
+              !consumerAppender.endsWith(readyMessageEqualPrefix)) {
             // wait for at least some results, will tell us that the ssh cnx is ready
             ready = true
             readyQueue.put("ready")
           }
-        } else if (consumerAppender.endsWith(prompt)) {
+        } else if (consumerAppender.endsWith(prompt) && !consumerAppender.endsWith(readyMessageEqualPrefix)) {
           val promptIndex = consumerAppender.size - promptSize
           val firstNlIndex = consumerAppender.indexOf("\n")
           val result = consumerAppender.substring(firstNlIndex + 1, promptIndex)

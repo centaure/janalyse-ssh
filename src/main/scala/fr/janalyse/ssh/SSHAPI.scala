@@ -1658,9 +1658,13 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     
     private def check4prompt():Boolean = {
        consumerAppender.endsWith(readyMessage) &&
-       !consumerAppender.endsWith("'" + readyMessage)
-      //&& !consumerAppender.endsWith("PS1=" + readyMessage)
+       !consumerAppender.endsWith("'" + readyMessage) &&
+       !consumerAppender.endsWith("PS1=" + readyMessage)
     }
+    
+    private def check4prompt2():Boolean = {
+       consumerAppender.endsWith(readyMessage)
+   }
     
     def write(b: Int) {
       if (b != 13) { //CR removed... CR is always added by JSCH !!!!
@@ -1671,7 +1675,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
             ready = true
             readyQueue.put("ready")
           }
-        } else if (check4prompt()) {
+        } else if (check4prompt2()) {
           val promptIndex = consumerAppender.size - promptSize
           val firstNlIndex = consumerAppender.indexOf("\n")
           val result = consumerAppender.substring(firstNlIndex + 1, promptIndex)

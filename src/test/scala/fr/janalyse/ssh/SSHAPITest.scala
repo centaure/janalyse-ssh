@@ -232,6 +232,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       import sh._
       uname.toLowerCase       should (equal("linux") or equal("darwin") or equal("aix") or equal("sunos"))
       osname                  should (equal("linux") or equal("darwin") or equal("aix") or equal("sunos"))
+      osid                    should (equal(Linux) or equal(Darwin) or equal(AIX) or equal(SunOS))
       env.size                should be > (0)
       hostname                should equal(rhostname)
       fileSize(testfile)      should equal(Some(4))

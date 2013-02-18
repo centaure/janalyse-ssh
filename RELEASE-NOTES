@@ -39,6 +39,7 @@ CAVEATS :
  - AIX sha1sum & md5sum fix.
  - new commands :
    + env
+   + osid  (with new trait OS and objects AIX, Linux, Darwin, SunOS)
  - new test cases 
 
 ------------------------------------------------------------------

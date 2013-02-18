@@ -33,6 +33,14 @@ import java.text.SimpleDateFormat
 import com.typesafe.scalalogging.slf4j.Logging
 
 
+sealed trait OS
+
+  object Linux  extends OS
+  object AIX    extends OS
+  object Darwin extends OS
+  object SunOS  extends OS
+
+
 // ==========================================================================================
 
 /**
@@ -439,6 +447,16 @@ trait ShellOperations extends CommonOperations with Logging {
    */
   def osname: String = uname.toLowerCase()
 
+  /**
+   * *nix os name (linux, aix, sunos, darwin, ...)
+   * @return remote *nix system name
+   */
+  def osid: OS = osname match {
+    case "linux"  => Linux
+    case "aix"    => AIX
+    case "darwin" => Darwin
+    case "sunos"  => SunOS
+  }
   
   /**
    * remote environment variables 

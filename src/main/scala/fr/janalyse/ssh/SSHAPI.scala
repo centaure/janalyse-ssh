@@ -1553,8 +1553,6 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
   val defaultPrompt = """-PRMT-: """
   val customPromptGiven = ssh.options.prompt.isDefined
   val prompt = ssh.options.prompt getOrElse defaultPrompt
-  
-  private val tokenStream = util.Random.alphanumeric
 
   val options = ssh.options
 
@@ -1657,16 +1655,23 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     private var searchForPromptIndex = 0
     private val promptSize = prompt.size
     private var lastPromptChar = prompt.last
+    
+    private def check4prompt():Boolean = {
+       consumerAppender.endsWith(readyMessage) && 
+      !consumerAppender.endsWith("'" + readyMessage) &&
+      !consumerAppender.endsWith("PS1=" + readyMessage)
+    }
+    
     def write(b: Int) {
       if (b != 13) { //CR removed... CR is always added by JSCH !!!!
         consumerAppender.append(b.toChar) // TODO - Add charset support
-        if (!ready) { // We want the response and only the response, not the echoed command, thats's why the quote is prefixed
-          if (consumerAppender.endsWith(readyMessage) && !consumerAppender.endsWith("'" + readyMessage)) {
+        if (!ready) { // We want the response and only the response, not the echoed command, that's why the quote is prefixed
+          if (check4prompt()) {
             // wait for at least some results, will tell us that the ssh cnx is ready
             ready = true
             readyQueue.put("ready")
           }
-        } else if (consumerAppender.endsWith(prompt)) {
+        } else if (check4prompt()) {
           val promptIndex = consumerAppender.size - promptSize
           val firstNlIndex = consumerAppender.indexOf("\n")
           val result = consumerAppender.substring(firstNlIndex + 1, promptIndex)

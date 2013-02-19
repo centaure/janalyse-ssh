@@ -41,6 +41,8 @@ CAVEATS :
    + env
    + osid  (with new trait OS and objects AIX, Linux, Darwin, SunOS)
  - new test cases 
+ - "du" fix for AIX (not supporting -d or --max-depth option)
+ - "ps" fix for AIX
 
 ------------------------------------------------------------------
 0.9.7 (2013-02-10)

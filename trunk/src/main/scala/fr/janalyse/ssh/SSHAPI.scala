@@ -404,7 +404,7 @@ trait ShellOperations extends CommonOperations with Logging {
    * @return optional file tree size in kilobytes, or None if filename was not found
    */
  def du(filename:String): Option[Long] = {
-    genoptcmd(s"""du -k -d 0 "$filename" """)
+    genoptcmd(s"""du -k "$filename" | tail -1""")
         .flatMap(_.split("""\s+""",2).headOption)
         .map(_.toLong)
   }
@@ -646,7 +646,7 @@ trait ShellOperations extends CommonOperations with Logging {
           AIXProcess(
               pid     = m("pid").toInt,
               ppid    = m("ppid").toInt,
-              user    = m("user"),
+              user    = m("ruser"),
               cmdline = m("args")
           )
         }
@@ -657,7 +657,7 @@ trait ShellOperations extends CommonOperations with Logging {
           SunOSProcess(
               pid     = m("pid").toInt,
               ppid    = m("ppid").toInt,
-              user    = m("user"),
+              user    = m("ruser"),
               cmdline = m("args")
           )
         }

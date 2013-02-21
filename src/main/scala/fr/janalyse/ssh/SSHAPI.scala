@@ -794,7 +794,9 @@ case class SSHOptions(
   sshKeyFile: Option[String] = None, // if None, will look for default names. (sshUserDir is used) 
   charset: String = "ISO-8859-15",
   noneCipher: Boolean = true,
-  compress: Option[Int] = None)(
+  compress: Option[Int] = None,
+  execWithPty:Boolean = false    // Sometime some command doesn't behave the same with or without tty, cf mysql
+  )(
     val host: String = "localhost") {
   val keyfiles2lookup = sshKeyFile ++ List("id_rsa", "id_dsa") // ssh key search order (from sshUserDir) 
 }
@@ -1011,6 +1013,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
       .foreach(f => jsch.addIdentity(f.getAbsolutePath))
 
     val ses = jsch.getSession(options.username, options.host, options.port)
+    ses.setServerAliveInterval(2000)
     ses.setTimeout(options.timeout.toInt) // Timeout for the ssh connection (unplug cable to simulate) 
     ses.setUserInfo(SSHUserInfo(options.password.password, options.passphrase.password))
     ses.connect(options.connectTimeout.toInt)
@@ -1215,7 +1218,7 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
     val stdout = ch.getInputStream()
     val stderr = ch.getErrStream()
     val stdin = ch.getOutputStream()
-    ch.setPty(true)
+    ch.setPty(ssh.options.execWithPty)
     ch.connect(ssh.options.connectTimeout.toInt)
     (ch, stdout, stderr, stdin)
   }

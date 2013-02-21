@@ -6,7 +6,7 @@ name := "janalyse-ssh-onejar"
 
 scalaVersion := "2.10.0"
 
-mainClass in assembly := Some("scala.tools.nsc.MainGenericRunner")
+mainClass in assembly := Some("fr.janalyse.ssh.Main")
 
 jarName in assembly := "jassh.jar"
 

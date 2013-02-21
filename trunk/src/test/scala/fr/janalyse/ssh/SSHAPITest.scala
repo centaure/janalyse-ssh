@@ -91,36 +91,48 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   //==========================================================================================================
   test("SSHShell : Bad performances obtained without persistent schell ssh channel (autoclose)") {
     val howmany=200
-    SSH.once(sshopts) { ssh =>
-      val (dur, _) = howLongFor {
-        for (i <- 1 to howmany) { ssh execute "ls -d /tmp && echo 'done'" }
+    for {
+      (opts, comment) <- (sshopts, "")::(sshopts.copy(execWithPty=true)(sshopts.host), "with VTY")::Nil
+    } {
+      SSH.once(opts) { ssh =>
+        val (dur, _) = howLongFor {
+          for (i <- 1 to howmany) { ssh.shell(_ execute "ls -d /tmp && echo 'done'" ) }
+        }
+        val throughput = howmany.doubleValue() / dur * 1000
+        info(f"Performance using shell without channel persistency : $throughput%.1f cmd/s $comment")
       }
-      val throughput = howmany.doubleValue() / dur * 1000
-      info("Performance using shell without channel persistency : %.1f cmd/s".format(throughput))
     }
   }
   //==========================================================================================================
   test("SSHShell : Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
     val howmany=5000
-    SSH.once(sshopts) {
-      _.shell { sh =>
-        val (dur, _) = howLongFor {
-          for (i <- 1 to howmany) { sh execute "ls -d /tmp && echo 'done'" }
+    for {
+      (opts, comment) <- (sshopts, "")::(sshopts.copy(execWithPty=true)(sshopts.host), "with VTY")::Nil
+    } {
+      SSH.once(opts) {
+        _.shell { sh =>
+          val (dur, _) = howLongFor {
+            for (i <- 1 to howmany) { sh execute "ls -d /tmp && echo 'done'" }
+          }
+          val throughput = howmany.doubleValue() / dur * 1000
+          info(f"Performance using with channel persistency : $throughput%.1f cmd/s $comment%s")
         }
-        val throughput = howmany.doubleValue() / dur * 1000
-        info("Performance using with channel persistency : %.1f cmd/s".format(throughput))
       }
     }
   }
   //==========================================================================================================
   test("SSHExec : performances obtained using exec ssh channel (no persistency)") {
     val howmany=200
-    SSH.once(sshopts) { ssh =>
-      val (dur, _) = howLongFor {
-        for (i <- 1 to howmany) { ssh execOnce "ls -d /tmp && echo 'done'"}
+    for {
+      (opts, comment) <- (sshopts, "")::(sshopts.copy(execWithPty=true)(sshopts.host), "with VTY")::Nil
+    } {
+      SSH.once(opts) { ssh =>
+        val (dur, _) = howLongFor {
+          for (i <- 1 to howmany) { ssh execOnce "ls -d /tmp && echo 'done'"}
+        }
+        val throughput = howmany.doubleValue() / dur * 1000
+        info(f"Performance using exec ssh channel (no persistency) : $throughput%.1f cmd/s $comment")
       }
-      val throughput = howmany.doubleValue() / dur * 1000
-      info("Performance using exec ssh channel (no persistency) : %.1f cmd/s".format(throughput))
     }
   }
   //==========================================================================================================

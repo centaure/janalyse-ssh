@@ -59,6 +59,11 @@ CAVEATS :
  - "ps" fix for AIX
  - SSHOptions new option : execWithPty = false (by default)
    tell if exec should use a virtual tty or not
+ - onejar subproject contains now a simplfied launcher
+   with default scala options :
+   -Yrepl-sync -usejavacp
+   -nocompdaemon -savecompiled
+   -deprecation
 
 ------------------------------------------------------------------
 0.9.7 (2013-02-10)

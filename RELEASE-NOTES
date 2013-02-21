@@ -49,6 +49,11 @@ CAVEATS :
  - new commands :
    + env
    + osid  (with new trait OS and objects AIX, Linux, Darwin, SunOS)
+   + rm
+   + rmdir
+   + mkdir
+   + arch
+   + kill
  - new test cases 
  - "du" fix for AIX (not supporting -d or --max-depth option)
  - "ps" fix for AIX

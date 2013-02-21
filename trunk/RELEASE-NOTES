@@ -23,11 +23,18 @@ CAVEATS :
      Workarounds : use SFTP  OR  use a command such as "cat /proc/cpuinfo". 
      (The last one is the "best workaround", will work in all cases)
      
-  => Be aware of the fact that SFTP SSH Channel may be not available, so prefer SCP to maximize scripts / code portability
-     from one system to an other.
+  => Be aware of the fact that SFTP SSH Channel may be not available, 
+     so prefer SCP to maximize scripts / code portability from one system to an other.
      Looks like linux SSHD comes with SFTP by default, but not AIX.
+     --> SOLVED IN 0.9.5-b3 WITH an automatic fallback mechanism
 
+  => TAKE CARE OF HOW MANY SESSIONS CAN BE MANAGED SIMULTANEOUSLY. Check sshd configuration
+     MaxStartups = 10 (default) the maximum number of concurrent unauthenticated connections to the SSH daemon
+     MaxSessions = 10 (default) the maximum number of open sessions permitted per network connection
 
+  => AIX sshd & SSHExecChannel (no persistence) doesn't work well when virtual tty is used
+     (execWithPty must be keep to false, this is the default value)
+  
 ------------------------------------------------------------------
 0.9.x (2013-xx-yy)
 
@@ -36,6 +43,8 @@ CAVEATS :
  - TODO : ChannelExec use of virtual tty must be configurable, as without performance are quite better
  - TODO : remove all println, use scalalogging...
   
+ - jsch session is now configured with tcp keep alive of 2s
+   (setServerAliveInterval(2000))
  - AIX sha1sum & md5sum fix.
  - new commands :
    + env
@@ -43,6 +52,8 @@ CAVEATS :
  - new test cases 
  - "du" fix for AIX (not supporting -d or --max-depth option)
  - "ps" fix for AIX
+ - SSHOptions new option : execWithPty = false (by default)
+   tell if exec should use a virtual tty or not
 
 ------------------------------------------------------------------
 0.9.7 (2013-02-10)

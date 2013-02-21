@@ -1,5 +1,5 @@
 #!/bin/sh
-exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
+exec java -jar jassh.jar "$0" "$@"
 !#
 
 jassh.SSH.shell("localhost", "test", "testtest") { sh =>

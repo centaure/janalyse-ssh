@@ -1,5 +1,5 @@
 #!/bin/sh
-exec java -jar jassh.jar -deprecation -savecompiled -usejavacp -nocompdaemon "$0" "$@"
+exec java -jar jassh.jar "$0" "$@"
 !#
 
 import fr.janalyse.ssh._

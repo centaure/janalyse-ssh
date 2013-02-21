@@ -740,6 +740,17 @@ trait ShellOperations extends CommonOperations with Logging {
   }
   
 
+  
+  def kill(pids:Iterable[Int]) { execute(s"""kill -9 ${pids.mkString(" ")}""") }
+
+  def rm(files:Iterable[String]) { execute(s"""rm -f ${files.mkString("'","' '", "'")}""") }
+  
+  def rmdir(dirs:Iterable[String]) { execute(s"""rmdir ${dirs.mkString("'","' '", "'")}""") }
+  
+  def arch = execute("arch")
+  
+  def mkdir(dirname:String) {execute(s"""mkdir -p '$dirname'""")}
+  
 }
 
 // ==========================================================================================

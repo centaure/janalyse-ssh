@@ -9,13 +9,13 @@ JASSH Scala SSH API tutorial. All examples described in this document can be dir
    * sbt console
  * download "jassh.jar" file, and start the console as follow :
    * wget http://code.google.com/p/janalyse-ssh/downloads/detail?name=jassh.jar
-   * java -jar target/jassh.jar -usejavacp -Yrepl-sync
+   * java -jar target/jassh.jar
 
 Besides that, you can also create your own scala scripts very simply, just create a dummy.scala script file as follow and make it executable (we assume that jassh.jar is in the current directory):
 {{{
 $ cat >dummy.scala
 #!/bin/sh
-exec java -jar jassh.jar -nocompdaemon -usejavacp -savecompiled "$0" "$@"
+exec java -jar jassh.jar "$0" "$@"
 !#
 jassh.SSH.shell("localhost", "test", "testtest") { sh =>
   print(sh.execute("""echo "Hello World from `hostname`" """))
@@ -60,7 +60,7 @@ Too good
 Still using console mode, but now let's use method helpers :
 
 {{{
-$ java -jar jassh.jar -usejavacp -Yrepl-sync
+$ java -jar jassh.jar
 Welcome to Scala version 2.9.2 (Java HotSpot(TM) 64-Bit Server VM, Java 1.6.0_33).
 Type in expressions to have them evaluated.
 Type :help for more information.
@@ -135,6 +135,7 @@ I've made available a large set of methods to simplify common usages, all availa
  * md5sum : returns remote file md5 sum
  * sha1sum : returns remote file sha1 sum
  * uname : get remote system uname
+ * osname : get remote system uname in lowercase
  * ls : returns an iterable of filenames
  * cd : Modify the remote current working directory (For SSHShell, not meaningfull for SSH)
  * pwd : Get the remote current working directory
@@ -150,3 +151,10 @@ I've made available a large set of methods to simplify common usages, all availa
  * ps : get process list
  * fsFreeSpace : how many space remain free in the filesystem of the give file
  * fileRights : return file rights for the given filepath
+ * env : get environment variables as a Map
+ * osid : get OS id (either AIX, Linux, Darwin, SunOS object)
+ * rm : delete files
+ * rmdir : delete a directory
+ * mkdir : create a directory
+ * arch : print OS architecture
+ * kill : kill processes

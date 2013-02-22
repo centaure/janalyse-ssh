@@ -8,9 +8,11 @@ TODO :
   => "ls --format=single-column" may to be replaced by "ls | cat"
   => Check if "date -u '+%Y-%m-%d %H:%M:%S %Z'" is supported on all *nix  (Checked OK for : AIX, Linux, SunOS)
   => split SSHAPI source file into several files.
+  => BSD, Cygwin support
 
-CAVEATS :
-  => ssh persisted shell session operations must be executed within the same thread, 
+Remarks :
+  => ssh persisted shell session operations must be executed within the same thread,
+     (this is jassh.jar default behavior as it transparently add the -Yrepl-sync)    
      do not span a persisted shell session across several threads => it may generates exception
 
      So be careful when using REPL with default config, as each "evaluation" is done within a new thread !

@@ -8,6 +8,8 @@ organizationHomepage := Some(new URL("http://www.janalyse.fr"))
 
 scalaVersion := "2.10.0"
 
+scalacOptions ++= Seq( "-deprecation", "-unchecked", "-feature")
+
 crossScalaVersions := Seq("2.10.0")
 
 libraryDependencies ++= Seq(

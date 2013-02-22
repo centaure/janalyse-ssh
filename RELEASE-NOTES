@@ -40,9 +40,10 @@ CAVEATS :
 
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
- - TODO : ChannelExec use of virtual tty must be configurable, as without performance are quite better
- - TODO : remove all println, use scalalogging...
-  
+
+------------------------------------------------------------------
+0.9.8 (2013-02-22)
+
  - jsch session is now configured with tcp keep alive of 2s
    (setServerAliveInterval(2000))
  - AIX sha1sum & md5sum fix.
@@ -59,11 +60,12 @@ CAVEATS :
  - "ps" fix for AIX
  - SSHOptions new option : execWithPty = false (by default)
    tell if exec should use a virtual tty or not
- - onejar subproject contains now a simplfied launcher
+   (Feature : ChannelExec use of virtual tty must be configurable, as without performance are quite better)
+ - onejar subproject contains now a simplified launcher
    with default scala options :
    -Yrepl-sync -usejavacp
    -nocompdaemon -savecompiled
-   -deprecation
+   -deprecation 
 
 ------------------------------------------------------------------
 0.9.7 (2013-02-10)

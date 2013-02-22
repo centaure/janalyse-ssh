@@ -9,7 +9,7 @@ JASSH Scala SSH API tutorial. All examples described in this document can be dir
    * sbt console
  * download "jassh.jar" file, and start the console as follow :
    * wget http://code.google.com/p/janalyse-ssh/downloads/detail?name=jassh.jar
-   * java -jar target/jassh.jar
+   * java -jar jassh.jar
 
 Besides that, you can also create your own scala scripts very simply, just create a dummy.scala script file as follow and make it executable (we assume that jassh.jar is in the current directory):
 {{{

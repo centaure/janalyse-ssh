@@ -1,6 +1,31 @@
 #labels Featured
 {{{
 
+0.9.8 (2013-02-22)
+ - jsch session is now configured with tcp keep alive of 2s
+   (setServerAliveInterval(2000))
+ - AIX sha1sum & md5sum fix.
+ - new commands :
+   + env
+   + osid  (with new trait OS and objects AIX, Linux, Darwin, SunOS)
+   + rm
+   + rmdir
+   + mkdir
+   + arch
+   + kill
+ - new test cases 
+ - "du" fix for AIX (not supporting -d or --max-depth option)
+ - "ps" fix for AIX
+ - SSHOptions new option : execWithPty = false (by default)
+   tell if exec should use a virtual tty or not
+   (Feature : ChannelExec use of virtual tty must be configurable, as without performance are quite better)
+ - onejar subproject contains now a simplified launcher
+   with default scala options :
+   -Yrepl-sync -usejavacp
+   -nocompdaemon -savecompiled
+   -deprecation 
+
+
 0.9.7 (2013-02-10)
  - scala >=2.10 is now mandatory
  - ChannelExec now is using a virtual tty by default

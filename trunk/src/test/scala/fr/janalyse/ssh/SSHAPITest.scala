@@ -43,10 +43,10 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   
   //==========================================================================================================
   test("One line exec with automatic resource close") {
-    SSH.once(sshopts) { _ execute "expr 1 + 1" trim } should equal("2")
-    SSH.once(sshopts) { _ executeAndTrim "expr 1 + 1" } should equal("2")
-    SSH.once(sshopts) { _ executeAllAndTrim "echo 1" :: "echo 2" :: Nil } should equal("1" :: "2" :: Nil)
-    val year = SSH.once(sshopts) { _ executeAndTrim "expr 1 + 10" toInt }
+    SSH.once(sshopts) { _.execute("expr 1 + 1").trim } should equal("2")
+    SSH.once(sshopts) { _.executeAndTrim("expr 1 + 1") } should equal("2")
+    SSH.once(sshopts) { _.executeAllAndTrim("echo 1" :: "echo 2" :: Nil) } should equal("1" :: "2" :: Nil)
+    val year = SSH.once(sshopts) { _.executeAndTrim("expr 1 + 10").toInt }
     year should equal(11)
   }
   //==========================================================================================================

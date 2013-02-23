@@ -31,7 +31,7 @@ import java.util.concurrent.locks.LockSupport
 import com.typesafe.scalalogging.slf4j.Logging
 
 import language.implicitConversions
-
+import language.reflectiveCalls
 
 
 // ==========================================================================================

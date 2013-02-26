@@ -167,14 +167,14 @@ trait ShellOperations extends CommonOperations with Logging {
    * Change current working directory to home directory
    * Of course this requires a persistent shell session to be really useful...
    */
-  def cd() { execute("cd") }
+  def cd { execute("cd") }
 
   /**
    * Change current working directory to the specified directory
    * Of course this requires a persistent shell session to be really useful...
    * @param dirname directory name
    */
-  def cd(dirname: String) { execute("""cd "%s" """.format(dirname)) }
+  def cd(dirname: String) {execute(s"""cd "$dirname" """)}
 
   /**
    * Get remote host name

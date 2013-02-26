@@ -42,7 +42,9 @@ Remarks :
 
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
-
+ 
+ - removing parenthesis to cd to allow executing "cd" to go back to home directory
+ 
 ------------------------------------------------------------------
 0.9.8 (2013-02-22)
 

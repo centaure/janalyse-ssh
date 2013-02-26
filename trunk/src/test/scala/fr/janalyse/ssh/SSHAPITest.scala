@@ -254,7 +254,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       ls                      should contain(testfile)
       cd(testdir)
       pwd                     should equal(homedir+"/"+testdir)
-      cd()
+      cd
       pwd                     should equal(homedir)
       sh.test("1 == 1")       should equal(true)
       sh.test("1 == 2")       should equal(false)

@@ -37,6 +37,7 @@ Remarks :
   => AIX sshd & SSHExecChannel (no persistence) doesn't work well when virtual tty is used
      (execWithPty must be keep to false, this is the default value)
   
+  => Take care of system limits for sshd (nofile & nproc)
 ------------------------------------------------------------------
 0.9.x (2013-xx-yy)
 
@@ -44,6 +45,7 @@ Remarks :
  - TODO : manage when sftp submodule is not available => throw the right exception
  
  - removing parenthesis to cd to allow executing "cd" to go back to home directory
+ - scala 2.10.1
  
 ------------------------------------------------------------------
 0.9.8 (2013-02-22)

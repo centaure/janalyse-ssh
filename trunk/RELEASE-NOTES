@@ -10,7 +10,7 @@ TODO :
   => split SSHAPI source file into several files.
   => BSD, Cygwin support
 
-Remarks :
+Remarks & caveats:
   => ssh persisted shell session operations must be executed within the same thread,
      (this is jassh.jar default behavior as it transparently add the -Yrepl-sync)    
      do not span a persisted shell session across several threads => it may generates exception
@@ -38,6 +38,10 @@ Remarks :
      (execWithPty must be keep to false, this is the default value)
   
   => Take care of system limits for sshd (nofile & nproc)
+     Check /etc/security/limits.conf for linux systems
+
+  => Password expiration may ask you for a new password, so you can be blocked waiting for a result that never comes.
+
 ------------------------------------------------------------------
 0.9.x (2013-xx-yy)
 

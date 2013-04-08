@@ -10,7 +10,7 @@ scalaVersion := "2.10.1"
 
 scalacOptions ++= Seq( "-deprecation", "-unchecked", "-feature")
 
-crossScalaVersions := Seq("2.10.1")
+crossScalaVersions := Seq("2.10.0", "2.10.1")
 
 libraryDependencies ++= Seq(
     "com.typesafe" %% "scalalogging-slf4j" % "1.0.0"

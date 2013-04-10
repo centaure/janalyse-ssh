@@ -1,6 +1,6 @@
 name := "janalyse-ssh"
 
-version := "0.9.8"
+version := "0.9.9"
 
 organization :="fr.janalyse"
 
@@ -10,10 +10,10 @@ scalaVersion := "2.10.1"
 
 scalacOptions ++= Seq( "-deprecation", "-unchecked", "-feature")
 
-crossScalaVersions := Seq("2.10.0", "2.10.1")
+crossScalaVersions := Seq("2.10.1")
 
 libraryDependencies ++= Seq(
-    "com.typesafe" %% "scalalogging-slf4j" % "1.0.0"
+    "com.typesafe" %% "scalalogging-slf4j" % "1.0.1"
    ,"com.jcraft" % "jsch" % "0.1.49" % "compile"
    ,"org.scalatest" %% "scalatest" % "1.9.1" % "test"
    ,"junit" % "junit" % "4.10" % "test"

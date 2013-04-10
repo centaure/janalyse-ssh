@@ -37,11 +37,11 @@ class TimeoutTest extends FunSuite with ShouldMatchers {
   
 
   test("timeout tests") { // TODO : not working, make timeout possible with too long running remote command; (^C is already possible)!!
-    val opts = SSHOptions(username="test", timeout=5000, connectTimeout=2000)("localhost")
+    val opts = SSHOptions(username="test", timeout=7000, connectTimeout=2000)("localhost")
     SSH.once(opts) {ssh =>
       ssh.executeAndTrim("sleep 4; echo 'ok'") should equal("ok")
-      intercept[IOException] {
-        ssh.executeAndTrim("sleep 10; echo 'ok'") should equal("ok")
+      intercept[InterruptedException] {
+        ssh.executeAndTrim("sleep 10; echo 'ok'")
       }
     }
   }

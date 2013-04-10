@@ -142,7 +142,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       
       var x=List.empty[String]
       
-      def receiver(data:Option[String]) {data foreach {d => x = x :+ d} }
+      def receiver(result:ExecResult) {result match { case ExecPart(d) => x = x :+ d  case _ =>} }
       val executor = ssh.run("for i in 1 2 3 4 5 ; do echo hello$1 ; done", receiver)
 
       executor.waitForEnd
@@ -170,7 +170,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
         val meminfo = ftp.get("/proc/meminfo")
       }
       // output streaming
-      def receiver(data:Option[String]) {data foreach {println(_)}}
+      def receiver(result:ExecResult) {result match {case ExecPart(m) => println(m) case _ =>}}
       val executor = ssh.run("for i in 1 2 3 ; do echo hello$i ; done", receiver)
       executor.waitForEnd
     }

@@ -46,7 +46,7 @@ Remarks & caveats:
      differently with or without a TTY/VTTY (sudo, mysql, ...)
 
 ------------------------------------------------------------------
-0.9.9 (2013-xx-yy)
+0.9.9 (2013-xx-yy) WORK IN PROGRESS
 
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
@@ -55,6 +55,7 @@ Remarks & caveats:
  - removing parenthesis to cd to allow executing "cd" to go back to home directory
  - scala 2.10.1
  - scalalogging 1.0.1
+ - SSHExec timeout implemented BUT not clean
  
 ------------------------------------------------------------------
 0.9.8 (2013-02-22)

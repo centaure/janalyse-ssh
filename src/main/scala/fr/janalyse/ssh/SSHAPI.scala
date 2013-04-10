@@ -132,33 +132,6 @@ object SSHPassword {
   }
 }
 
-// ==========================================================================================
-
-/**
- * SSHOptions stores all ssh parameters
- * @author David Crosson
- */
-case class SSHOptions(
-  username: String = util.Properties.userName,
-  password: SSHPassword = NoPassword,
-  passphrase: SSHPassword = NoPassword,
-  name: Option[String] = None,
-  port: Int = 22,
-  prompt: Option[String] = None,
-  timeout: Long = 300000,
-  connectTimeout: Long = 30000,
-  retryCount: Int = 5,
-  retryDelay: Int = 2000,
-  sshUserDir: String = SP.userHome + FS + ".ssh",
-  sshKeyFile: Option[String] = None, // if None, will look for default names. (sshUserDir is used) 
-  charset: String = "ISO-8859-15",
-  noneCipher: Boolean = true,
-  compress: Option[Int] = None,
-  execWithPty:Boolean = false    // Sometime some command doesn't behave the same with or without tty, cf mysql
-  )(
-    val host: String = "localhost") {
-  val keyfiles2lookup = sshKeyFile ++ List("id_rsa", "id_dsa") // ssh key search order (from sshUserDir) 
-}
 
 // ==========================================================================================
 
@@ -403,9 +376,9 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
 
   def scp[T](proc: (SSHScp) => T) = SSH.using(new SSHScp) { proc(_) }
 
-  def noerr(data: Option[String]) {}
+  def noerr(data: ExecResult) {}
 
-  def run(cmd: String, out: Option[String] => Any, err: Option[String] => Any = noerr) = new SSHExec(cmd, out, err)
+  def run(cmd: String, out: ExecResult => Any, err: ExecResult => Any = noerr) = new SSHExec(cmd, out, err)
 
   override def execute(cmd: SSHCommand) =
     //shell { _ execute cmd.cmd }    // Using SSHShell channel  (lower performances)
@@ -417,10 +390,13 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
 
   def execOnce(scmd: SSHCommand) = {
     val sb = new StringBuilder()
-    def recvStandardOutput(content: Option[String]) {
-      for (c <- content) {
-        if (sb.size > 0) sb.append("\n")
-        sb.append(c)
+    def recvStandardOutput(content: ExecResult) {
+      content match {
+        case ExecPart(part) =>
+          if (sb.size > 0) sb.append("\n")
+          sb.append(part)
+        case ExecEnd =>
+        case ExecTimeout =>
       }
     }
     var runner: Option[SSHExec] = None
@@ -568,8 +544,13 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
 }
 
 // ==========================================================================================
+sealed trait ExecResult
+case class ExecPart(content:String) extends ExecResult
+object ExecEnd extends ExecResult
+object ExecTimeout extends ExecResult
 
-class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => Any)(implicit ssh: SSH) {
+
+class SSHExec(cmd: String, out: ExecResult => Any, err: ExecResult => Any)(implicit ssh: SSH) {
 
   private val (channel, stdout, stderr, stdin) = {
     val ch = ssh.jschsession.openChannel("exec").asInstanceOf[ChannelExec]
@@ -583,6 +564,7 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
   }
   private val stdoutThread = InputStreamThread(channel, stdout, out)
   private val stderrThread = InputStreamThread(channel, stderr, err)
+  private val timeoutThread = TimeoutManagerThread(ssh.options.timeout) {close}
 
   def giveInputLine(line: String) {
     stdin.write(line.getBytes())
@@ -593,17 +575,39 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
   def waitForEnd {
     stdoutThread.join()
     stderrThread.join()
-    close()
+    //close()
   }
 
-  def close() = {
+  def close() {
     stdin.close()
     stdoutThread.interrupt()
     stderrThread.interrupt()
     channel.disconnect
+    if (timeoutThread.interrupted) throw new InterruptedException("Timeout Reached")
+    timeoutThread.interrupt()
   }
 
-  private class InputStreamThread(channel: ChannelExec, input: InputStream, output: Option[String] => Any) extends Thread {
+  private class TimeoutManagerThread(timeout:Long)(todo : =>Any) extends Thread {
+    var interrupted=false
+    override def run() {
+      val started = System.currentTimeMillis()
+      try {
+        Thread.sleep(timeout)
+        todo
+      } catch {
+        case e:InterruptedException => interrupted=true
+      }
+    }
+  }
+  private object TimeoutManagerThread {
+    def apply(timeout:Long)(todo : => Any):TimeoutManagerThread = {
+      val thread = new TimeoutManagerThread(timeout)(todo)
+      thread.start()
+      thread
+    }
+  }
+  
+  private class InputStreamThread(channel: ChannelExec, input: InputStream, output: ExecResult => Any) extends Thread {
     override def run() {
       val bufsize = 16 * 1024
       val charset = Charset.forName(ssh.options.charset)
@@ -612,40 +616,42 @@ class SSHExec(cmd: String, out: Option[String] => Any, err: Option[String] => An
       val buffer = ByteBuffer.allocate(bufsize)
       val appender = new StringBuilder()
       var eofreached = false
-      do {
-        //val available = binput.available()
-        //if (available ==0) {
-        //Thread.sleep(100) 
-        //} /*else {*/  
-        // Notes : It is important to try to read something even available == 0 in order to be able to get EOF message !
-        // Notes : After some tests, looks like jsch input stream is probably line oriented... so no need to use available !
-        val howmany = binput.read(bytes, 0, bufsize /*if (available < bufsize) available else bufsize*/ )
-        if (howmany == -1) eofreached = true
-        if (howmany > 0) {
-          buffer.put(bytes, 0, howmany)
-          buffer.flip()
-          val cbOut = charset.decode(buffer)
-          buffer.compact()
-          appender.append(cbOut.toString())
-          var s = 0
-          var e = 0
-          do {
-            e = appender.indexOf("\n", s)
-            if (e >= 0) {
-              output(Some(appender.substring(s, e)))
-              s = e + 1
-            }
-          } while (e != -1)
-          appender.delete(0, s)
-          //}
-        }
-      } while (!eofreached) // && !channel.isEOF() && !channel.isClosed()) // => This old test is not good as data may remaining on the stream
-      if (appender.size > 0) output(Some(appender.toString()))
-      output(None)
+      try {
+	      do {
+	        // Notes : It is important to try to read something even available == 0 in order to be able to get EOF message !
+	        // Notes : After some tests, looks like jsch input stream is probably line oriented... so no need to use available !
+	        val howmany = binput.read(bytes, 0, bufsize /*if (available < bufsize) available else bufsize*/ )
+	        if (howmany == -1) eofreached = true
+	        if (howmany > 0) {
+	          buffer.put(bytes, 0, howmany)
+	          buffer.flip()
+	          val cbOut = charset.decode(buffer)
+	          buffer.compact()
+	          appender.append(cbOut.toString())
+	          var s = 0
+	          var e = 0
+	          do {
+	            e = appender.indexOf("\n", s)
+	            if (e >= 0) {
+	              output(ExecPart(appender.substring(s, e)))
+	              s = e + 1
+	            }
+	          } while (e != -1)
+	          appender.delete(0, s)
+	        }
+	      } while (!eofreached) // && !channel.isEOF() && !channel.isClosed()) // => This old test is not good as data may remaining on the stream
+          if (appender.size > 0) output(ExecPart(appender.toString()))
+	      output(ExecEnd)
+      } catch {
+        case e:InterruptedIOException =>
+          output(ExecTimeout)
+        case e:InterruptedException =>
+          output(ExecTimeout)
+      }
     }
   }
   private object InputStreamThread {
-    def apply(channel: ChannelExec, input: InputStream, output: Option[String] => Any) = {
+    def apply(channel: ChannelExec, input: InputStream, output: ExecResult => Any) = {
       val newthread = new InputStreamThread(channel, input, output)
       newthread.start()
       newthread

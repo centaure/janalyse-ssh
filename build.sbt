@@ -15,7 +15,7 @@ crossScalaVersions := Seq("2.10.0", "2.10.1")
 libraryDependencies ++= Seq(
     "com.typesafe" %% "scalalogging-slf4j" % "1.0.0"
    ,"com.jcraft" % "jsch" % "0.1.49" % "compile"
-   ,"org.scalatest" %% "scalatest" % "2.0.M5b" % "test"
+   ,"org.scalatest" %% "scalatest" % "1.9.1" % "test"
    ,"junit" % "junit" % "4.10" % "test"
 )
 

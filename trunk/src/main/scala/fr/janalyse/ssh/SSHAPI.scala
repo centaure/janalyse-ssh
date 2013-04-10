@@ -564,7 +564,10 @@ class SSHExec(cmd: String, out: ExecResult => Any, err: ExecResult => Any)(impli
   }
   private val stdoutThread = InputStreamThread(channel, stdout, out)
   private val stderrThread = InputStreamThread(channel, stderr, err)
-  private val timeoutThread = TimeoutManagerThread(ssh.options.timeout) {close}
+  private val timeoutThread = TimeoutManagerThread(ssh.options.timeout) {
+    stdoutThread.interrupt()
+    stderrThread.interrupt()
+    }
 
   def giveInputLine(line: String) {
     stdin.write(line.getBytes())
@@ -593,9 +596,10 @@ class SSHExec(cmd: String, out: ExecResult => Any, err: ExecResult => Any)(impli
       val started = System.currentTimeMillis()
       try {
         Thread.sleep(timeout)
+        interrupted=true
         todo
       } catch {
-        case e:InterruptedException => interrupted=true
+        case e:InterruptedException => 
       }
     }
   }

@@ -36,6 +36,7 @@ Remarks & caveats:
 
   => AIX sshd & SSHExecChannel (no persistence) doesn't work well when virtual tty is used
      (execWithPty must be keep to false, this is the default value)
+     strange behavior : when SFtp subchannel is enabled, the maximum number of ExecChannel in // decrease...
   
   => Take care of system limits for sshd (nofile & nproc)
      Check /etc/security/limits.conf for linux systems

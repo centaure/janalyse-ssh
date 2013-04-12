@@ -40,7 +40,7 @@ class TimeoutTest extends FunSuite with ShouldMatchers {
     val opts = SSHOptions(username="test", timeout=7000, connectTimeout=2000)("localhost")
     SSH.once(opts) {ssh =>
       ssh.executeAndTrim("sleep 4; echo 'ok'") should equal("ok")
-      intercept[InterruptedException] {
+      intercept[SSHTimeoutException] {
         ssh.executeAndTrim("sleep 10; echo 'ok'")
       }
     }

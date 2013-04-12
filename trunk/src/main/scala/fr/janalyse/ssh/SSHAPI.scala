@@ -346,7 +346,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
 
     val ses = jsch.getSession(options.username, options.host, options.port)
     ses.setServerAliveInterval(2000)
-    ses.setTimeout(options.timeout.toInt) // Timeout for the ssh connection (unplug cable to simulate) 
+    ses.setTimeout(options.connectTimeout.toInt) // Timeout for the ssh connection (unplug cable to simulate) 
     ses.setUserInfo(SSHUserInfo(options.password.password, options.passphrase.password))
     ses.connect(options.connectTimeout.toInt)
     if (ssh.options.noneCipher) {
@@ -389,24 +389,28 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
   def execOnceAndTrim(scmd: SSHCommand) = execOnce(scmd).trim()
 
   def execOnce(scmd: SSHCommand) = {
-    val sb = new StringBuilder()
-    def recvStandardOutput(content: ExecResult) {
+    val stdout = new StringBuilder()
+    val stderr = new StringBuilder()
+    def outputReceiver(buffer:StringBuilder)(content: ExecResult) {
       content match {
         case ExecPart(part) =>
-          if (sb.size > 0) sb.append("\n")
-          sb.append(part)
+          if (buffer.size > 0) buffer.append("\n")
+          buffer.append(part)
         case ExecEnd =>
         case ExecTimeout =>
       }
     }
     var runner: Option[SSHExec] = None
     try {
-      runner = Some(new SSHExec(scmd.cmd, recvStandardOutput, _ => None))
+      runner = Some(new SSHExec(scmd.cmd, outputReceiver(stdout), outputReceiver(stderr)))
       runner foreach { _.waitForEnd }
+    } catch {
+      case e:InterruptedException =>
+        throw new SSHTimeoutException(stdout.toString, stderr.toString)
     } finally {
       runner foreach { _.close }
     }
-    sb.toString()
+    stdout.toString()
   }
 
   private var firstHasFailed=false
@@ -578,7 +582,8 @@ class SSHExec(cmd: String, out: ExecResult => Any, err: ExecResult => Any)(impli
   def waitForEnd {
     stdoutThread.join()
     stderrThread.join()
-    //close()
+    if (timeoutThread.interrupted) throw new InterruptedException("Timeout Reached")
+    close()
   }
 
   def close() {
@@ -586,20 +591,20 @@ class SSHExec(cmd: String, out: ExecResult => Any, err: ExecResult => Any)(impli
     stdoutThread.interrupt()
     stderrThread.interrupt()
     channel.disconnect
-    if (timeoutThread.interrupted) throw new InterruptedException("Timeout Reached")
     timeoutThread.interrupt()
   }
 
   private class TimeoutManagerThread(timeout:Long)(todo : =>Any) extends Thread {
     var interrupted=false
     override def run() {
-      val started = System.currentTimeMillis()
-      try {
-        Thread.sleep(timeout)
-        interrupted=true
-        todo
-      } catch {
-        case e:InterruptedException => 
+      if (timeout>0) {
+	      try {
+	        Thread.sleep(timeout)
+	        interrupted=true
+	        todo
+	      } catch {
+	        case e:InterruptedException => 
+	      }
       }
     }
   }

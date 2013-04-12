@@ -15,7 +15,7 @@ case class SSHOptions(
   name: Option[String] = None,
   port: Int = 22,
   prompt: Option[String] = None,
-  timeout: Long = 300000,
+  timeout: Long = 0,
   connectTimeout: Long = 30000,
   retryCount: Int = 5,
   retryDelay: Int = 2000,

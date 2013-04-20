@@ -1,6 +1,7 @@
 package fr.janalyse.ssh
 
 import java.io.File
+import java.io.{OutputStream,FileOutputStream}
 
 /**
  * TransfertOperations defines generic data transfer operations over SCP or SFTP
@@ -23,10 +24,19 @@ trait TransfertOperations extends CommonOperations {
   /**
    * Copy a remote file to a local one
    * @param remoteFilename Source file name (on remote system)
+   * @param outputStream Destination stream (local system)
+   */
+  def receive(remoteFilename: String, outputStream: OutputStream)
+  
+  /**
+   * Copy a remote file to a local one
+   * @param remoteFilename Source file name (on remote system)
    * @param localFile Destination file (local system)
    */
-  def receive(remoteFilename: String, toLocalFile: File)
-
+  def receive(remoteFilename: String, toLocalFile: File) {
+    receive(remoteFilename, new FileOutputStream(toLocalFile))
+  }
+  
   /**
    * Copy a remote file to a local one
    * @param remoteFilename Source file name (on remote system)
@@ -34,6 +44,38 @@ trait TransfertOperations extends CommonOperations {
    */
   def receive(remoteFilename: String, localFilename: String) {
     receive(remoteFilename, new File(localFilename))
+  }
+  
+  /**
+   * Copy and compress (if required) a remote file to a local one
+   * @param remoteFilename Source file name (on remote system)
+   * @param localDirectory Destination directory
+   * @param localBasename Destination file base name (local system), compressed extension may be added to it
+   * @return local file used
+   */
+  def receiveNcompress(remoteFilename:String, localDirectory:File, localBasename:String) = {
+    val (outputStream, localFile) = if (compressedCheck(remoteFilename).isDefined) {
+      val local  = new File(localDirectory, localBasename)
+      val output = new FileOutputStream(local)
+      (output, local)
+    } else {
+      import org.apache.commons.compress.compressors.CompressorStreamFactory
+      val local  = new File(localDirectory, localBasename+".gz")
+      val output = new FileOutputStream(local)      
+      val compressedOutput = new CompressorStreamFactory().createCompressorOutputStream(CompressorStreamFactory.GZIP, output)
+      (compressedOutput, local)
+    }
+  }
+  private def compressedCheck(filename: String):Option[String] = {
+    val GZ = """.*[.]gz$""".r
+    val XZ = """.*[.]gz$""".r
+    val BZ = """.*[.](?:(?:bz2)|(?:bzip2))""".r
+    filename.toLowerCase match {
+      case GZ() => Some("gz")
+      case BZ() => Some("bz")
+      case XZ() => Some("xz")
+      case _ => None
+    }
   }
 
   /**

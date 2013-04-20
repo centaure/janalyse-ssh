@@ -441,10 +441,10 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
       ssh.ftp( _ getBytes remoteFilename)
     )
 
-  override def receive(remoteFilename: String, toLocalFile: File) {
+  override def receive(remoteFilename: String, outputStream: OutputStream) {
     opWithFallback(
-      ssh.scp(_.receive(remoteFilename, toLocalFile)),
-      ssh.ftp(_.receive(remoteFilename, toLocalFile))
+      ssh.scp(_.receive(remoteFilename, outputStream)),
+      ssh.ftp(_.receive(remoteFilename, outputStream))
     )
   }
 
@@ -691,8 +691,8 @@ class SSHScp(implicit ssh: SSH) extends TransfertOperations {
     }
   }
 
-  override def receive(remoteFilename: String, toLocalFile: File) {
-    def filename2outputStream(filename: String) = new FileOutputStream(toLocalFile)
+  override def receive(remoteFilename: String, outputStream: OutputStream) {
+    def filename2outputStream(filename: String) = outputStream // just One file supported
     remoteFile2OutputStream(remoteFilename, filename2outputStream) match {
       case 0 => throw new RuntimeException("Remote file name '%s' not found".format(remoteFilename))
       case 1 => // OK
@@ -918,9 +918,9 @@ class SSHFtp(implicit ssh: SSH) extends TransfertOperations {
     }
   }
 
-  override def receive(remoteFilename: String, localFile: File) {
+  override def receive(remoteFilename: String, outputStream: OutputStream) {
     try {
-      channel.get(remoteFilename, new FileOutputStream(localFile))
+      channel.get(remoteFilename, outputStream)
     } catch {
       case e: SftpException if (e.id == 2) => None // File doesn't exist
       case e: IOException => None

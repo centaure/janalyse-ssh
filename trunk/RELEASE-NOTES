@@ -57,6 +57,10 @@ Remarks & caveats:
  - scala 2.10.1
  - scalalogging 1.0.1
  - SSHExec timeout implemented BUT not clean
+    + SSHTimeoutException class added
+ - sbt eclipse 2.1.2
+ - receiveNcompress method added to TransfertOperations (gz)
+ - new dependency : "org.apache.commons" % "commons-compress"
  
 ------------------------------------------------------------------
 0.9.8 (2013-02-22)

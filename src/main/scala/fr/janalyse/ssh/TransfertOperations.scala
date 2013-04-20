@@ -68,7 +68,7 @@ trait TransfertOperations extends CommonOperations {
   }
   private def compressedCheck(filename: String):Option[String] = {
     val GZ = """.*[.]gz$""".r
-    val XZ = """.*[.]gz$""".r
+    val XZ = """.*[.]xz$""".r
     val BZ = """.*[.](?:(?:bz2)|(?:bzip2))""".r
     filename.toLowerCase match {
       case GZ() => Some("gz")

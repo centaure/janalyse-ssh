@@ -53,7 +53,7 @@ trait TransfertOperations extends CommonOperations {
    * @param localBasename Destination file base name (local system), compressed extension may be added to it
    * @return local file used
    */
-  def receiveNcompress(remoteFilename:String, localDirectory:File, localBasename:String) = {
+  def receiveNcompress(remoteFilename:String, localDirectory:File, localBasename:String):File  = {
     val (outputStream, localFile) = if (compressedCheck(remoteFilename).isDefined) {
       val local  = new File(localDirectory, localBasename)
       val output = new FileOutputStream(local)
@@ -65,6 +65,8 @@ trait TransfertOperations extends CommonOperations {
       val compressedOutput = new CompressorStreamFactory().createCompressorOutputStream(CompressorStreamFactory.GZIP, output)
       (compressedOutput, local)
     }
+    receive(remoteFilename, outputStream)
+    localFile
   }
   private def compressedCheck(filename: String):Option[String] = {
     val GZ = """.*[.]gz$""".r

@@ -57,12 +57,14 @@ Remarks & caveats:
  - removing parenthesis to cd to allow executing "cd" to go back to home directory
  - scala 2.10.1
  - scalalogging 1.0.1
+ - sbt assembly 0.8.8
+ - sbt eclipse 2.1.2
  - SSHExec timeout implemented BUT not clean
     + SSHTimeoutException class added
- - sbt eclipse 2.1.2
  - receiveNcompress method added to TransfertOperations (gz)
  - new dependency : "org.apache.commons" % "commons-compress"
- 
+ - SSHOptions - removing second parameter list, host comes back to the first and unik parameter list.
+   (Two parameters list for SSHOptions was a bad idea)
 ------------------------------------------------------------------
 0.9.8 (2013-02-22)
 

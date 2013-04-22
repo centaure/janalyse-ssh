@@ -9,6 +9,7 @@ import java.io.File.{ separator => FS, pathSeparator => PS }
  * @author David Crosson
  */
 case class SSHOptions(
+  host:String="localhost",
   username: String = util.Properties.userName,
   password: SSHPassword = NoPassword,
   passphrase: SSHPassword = NoPassword,
@@ -25,7 +26,7 @@ case class SSHOptions(
   noneCipher: Boolean = true,
   compress: Option[Int] = None,
   execWithPty:Boolean = false    // Sometime some command doesn't behave the same with or without tty, cf mysql
-  )(
-    val host: String = "localhost") {
-  val keyfiles2lookup = sshKeyFile ++ List("id_rsa", "id_dsa") // ssh key search order (from sshUserDir) 
+  ) {
+  val keyfiles2lookup = sshKeyFile ++ List("id_rsa", "id_dsa") // ssh key search order (from sshUserDir)
+  def compressed = this.copy(compress=Some(5))
 }

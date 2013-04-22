@@ -158,7 +158,7 @@ object SSH {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withssh: (SSH) => T): T = using(new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))) {
+    timeout: Int = 300000)(withssh: (SSH) => T): T = using(new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))) {
     withssh(_)
   }
   /**
@@ -199,7 +199,7 @@ object SSH {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))(withsh)
+    timeout: Int = 300000)(withsh: (SSHShell) => T): T = shell[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withsh)
 
   /**
    * Executes the given code then closes the new ssh shell associated session.
@@ -235,7 +235,7 @@ object SSH {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))(withftp)
+    timeout: Int = 300000)(withftp: (SSHFtp) => T): T = ftp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withftp)
 
   /**
    * Executes the given code then closes the new sftp associated session.
@@ -272,7 +272,7 @@ object SSH {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))(withshftp)
+    timeout: Int = 300000)(withshftp: (SSHShell, SSHFtp) => T): T = shellAndFtp[T](SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))(withshftp)
 
   /**
    * Executes the given code then closes the new ssh shell and sftp associated sessions.
@@ -307,7 +307,7 @@ object SSH {
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000) = new SSH(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))
+    timeout: Int = 300000) = new SSH(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
 
   /**
    * Creates a new SSH session, it is up to the user to manage close
@@ -507,7 +507,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
    */
   def remote(remoteOptions: SSHOptions): SSH = {
     val chosenPort: Int = remote2Local(remoteOptions.host, remoteOptions.port)
-    val localOptions = remoteOptions.copy(port = chosenPort)(host = "127.0.0.1")
+    val localOptions = remoteOptions.copy(host = "127.0.0.1", port = chosenPort)
     new SSH(localOptions)
   }
 
@@ -527,7 +527,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     password: SSHPassword = NoPassword,
     passphrase: SSHPassword = NoPassword,
     port: Int = 22,
-    timeout: Int = 300000): SSH = remote(SSHOptions(username = username, password = password, passphrase = passphrase, port = port, timeout = timeout)(host = host))
+    timeout: Int = 300000): SSH = remote(SSHOptions(host = host, username = username, password = password, passphrase = passphrase, port = port, timeout = timeout))
 
   /**
    * returns a new shell for current SSH session, you must manage close operation by your self

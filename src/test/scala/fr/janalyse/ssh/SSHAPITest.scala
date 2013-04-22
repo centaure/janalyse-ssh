@@ -37,7 +37,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     (end - begin, result)
   }
 
-  val sshopts = SSHOptions("test", password="testtest")("127.0.0.1")
+  val sshopts = SSHOptions("127.0.0.1", "test", password="testtest")
   //val sshopts = SSHOptions("192.168.2.238", "test", password=Some("testtest"), port=22022)
   //val sshopts = SSHOptions("www.janalyse.fr")
   
@@ -92,7 +92,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   test("SSHShell : Bad performances obtained without persistent schell ssh channel (autoclose)") {
     val howmany=200
     for {
-      (opts, comment) <- (sshopts, "")::(sshopts.copy(execWithPty=true)(sshopts.host), "with VTY")::Nil
+      (opts, comment) <- (sshopts, "")::(sshopts.copy(execWithPty=true), "with VTY")::Nil
     } {
       SSH.once(opts) { ssh =>
         val (dur, _) = howLongFor {
@@ -107,7 +107,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   test("SSHShell : Best performance is achieved with mutiple command within the same shell channel (autoclose)") {
     val howmany=5000
     for {
-      (opts, comment) <- (sshopts, "")::(sshopts.copy(execWithPty=true)(sshopts.host), "with VTY")::Nil
+      (opts, comment) <- (sshopts, "")::(sshopts.copy(execWithPty=true), "with VTY")::Nil
     } {
       SSH.once(opts) {
         _.shell { sh =>
@@ -124,7 +124,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   test("SSHExec : performances obtained using exec ssh channel (no persistency)") {
     val howmany=200
     for {
-      (opts, comment) <- (sshopts, "")::(sshopts.copy(execWithPty=true)(sshopts.host), "with VTY")::Nil
+      (opts, comment) <- (sshopts, "")::(sshopts.copy(execWithPty=true), "with VTY")::Nil
     } {
       SSH.once(opts) { ssh =>
         val (dur, _) = howLongFor {
@@ -294,8 +294,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       info("Bytes rate : %.1fMb/s %dMb in %.1fs for %d files - %s".format(howmany*sizeKb*1000L/d/1024d, sizeKb*howmany/1024, d/1000d, howmany, comments))      
     }
     
-    val withCipher=SSHOptions("test", noneCipher=false)("localhost")
-    val noneCipher=SSHOptions("test", noneCipher=true)("localhost")
+    val withCipher=SSHOptions("localhost", "test", noneCipher=false)
+    val noneCipher=SSHOptions("localhost", "test", noneCipher=true)
     
     SSH.once(withCipher) (toTest(withSCP, 5, 100*1024, "byterates using SCP"))
     SSH.once(noneCipher) (toTest(withSCP, 5, 100*1024, "byterates using SCP (with none cipher)"))
@@ -343,8 +343,8 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       info("Bytes rate : %.1fMb/s %dMb in %.1fs for %d files - %s".format(howmany*sizeKb*1000L/d/1024d, sizeKb*howmany/1024, d/1000d, howmany, comments))      
     }
     
-    val withCompress = SSHOptions("test", compress=None)("localhost")
-    val noCompress = SSHOptions("test", compress=Some(9))("localhost")
+    val withCompress = SSHOptions("localhost", "test", compress=None)
+    val noCompress = SSHOptions("localhost", "test", compress=Some(9))
     
     SSH.once(withCompress) (toTest(withReusedSFTP, 1, 100*1024, "byterates using SFTP (max compression)"))
     SSH.once(noCompress) (toTest(withReusedSFTP, 1, 100*1024, "byterates using SFTP (no compression)"))
@@ -434,7 +434,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
   
   //==========================================================================================================
   test("sharing SSH options...") {
-    val common = SSHOptions(username="test", password="testtest")_
+    val common = (h:String) => SSHOptions(h, username="test", password="testtest")
     
     SSH.once(common("localhost")) { _.executeAndTrim("echo 'hello'") should equal ("hello") }
     

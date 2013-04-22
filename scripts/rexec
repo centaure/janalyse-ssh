@@ -6,7 +6,7 @@ import fr.janalyse.ssh._
 import util.Properties
 
 if (args.size<2) {
-  println("""usage : rexec.scala command [user[:password]@]host[:port] ...""")
+  println("""usage : rexec command [user[:password]@]host[:port] ...""")
   println("""  Of course prefer public key authentication, default behavior if no password is provided """)
   println("""  example : rexec.scala "hostname" 192.168.1.10 toto@192.168.1.11 toto@192.168.1.12:22""")
   System.exit(0)
@@ -19,10 +19,11 @@ val cmd2exec=args.head
 val servers = args.tail map {
   case serverRE(user, password, host, port) => 
     SSHOptions(
+      host     = host,
       username = Option(user).getOrElse(Properties.userName),
       password = SSHPassword(Option(password)),
       port     = Option(port).map(_.toInt).getOrElse(22)
-    )(host = host)
+    )
   case notUnderstood => 
     throw new RuntimeException("Couln'd understand remote host description : "+notUnderstood)
 }

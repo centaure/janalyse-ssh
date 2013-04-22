@@ -2,6 +2,7 @@
 exec java -jar jassh.jar "$0" "$@"
 !#
 // jassh.jar can be downloaded here : http://code.google.com/p/janalyse-ssh/
+// Java >= 7 mandatory for this example
 
 import jassh._
 
@@ -21,16 +22,20 @@ val parallelismLevel=if (args.size>0) args(0).toInt else 50
  */
 
 val remotehosts = (1 to 1000) map { num =>
-  SSHOptions(username="test", password="testtest", name=Some(s"host#$num"))("127.0.0.1")
+  SSHOptions("127.0.0.1", username="test", password="testtest", name=Some(s"host#$num"))
 }
 
 
 
+// Default executor
 // implicit val defaultEC = ExecutionContext.Implicits.global
-// For ForkJoinPool JDK >= 7 Required
+
+// For ForkJoinPool JDK >= 7 Required Await.ready mandatory in that case
 implicit val customEC = ExecutionContext.fromExecutorService(
     new java.util.concurrent.ForkJoinPool(parallelismLevel)
 )
+
+
 
 
 val futuresResults = remotehosts.map { rh =>

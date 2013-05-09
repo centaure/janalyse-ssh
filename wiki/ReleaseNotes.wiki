@@ -1,6 +1,6 @@
 #labels Featured
 {{{
-Remarks :
+Remarks & caveats:
   => ssh persisted shell session operations must be executed within the same thread,
      (this is jassh.jar default behavior as it transparently add the -Yrepl-sync)    
      do not span a persisted shell session across several threads => it may generates exception
@@ -26,10 +26,34 @@ Remarks :
 
   => AIX sshd & SSHExecChannel (no persistence) doesn't work well when virtual tty is used
      (execWithPty must be keep to false, this is the default value)
+     strange behavior : when SFtp subchannel is enabled, the maximum number of ExecChannel in // decrease...
+  
+  => Take care of system limits for sshd (nofile & nproc)
+     Check /etc/security/limits.conf for linux systems
+
+  => Password expiration may ask you for a new password, so you can be blocked waiting for a result that never comes.
+
+  => Remember that some operations may require a TTY (or let's rather say a virtual TTY) or behave 
+     differently with or without a TTY/VTTY (sudo, mysql, ...)
 
 }}}
 
 {{{
+
+0.9.9 (2013-05-09)
+
+ - scala 2.10.1
+ - scalalogging 1.0.1
+ - sbt assembly 0.8.8
+ - sbt eclipse 2.1.2
+ - removing parenthesis to cd to allow executing "cd" to go back to home directory
+ - SSHExec timeout implemented BUT not yet clean
+    + SSHTimeoutException class added
+ - receiveNcompress method added to TransfertOperations (gz)
+ - new dependency : "org.apache.commons" % "commons-compress"
+ - SSHOptions - removing second parameter list, host comes back to the first and unik parameter list.
+   (Two parameters list for SSHOptions was a bad idea)
+
 
 0.9.8 (2013-02-22)
  - jsch session is now configured with tcp keep alive of 2s

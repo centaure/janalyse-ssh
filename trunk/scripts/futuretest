@@ -27,14 +27,23 @@ val remotehosts = (1 to 1000) map { num =>
 
 
 
-// Default executor
-// implicit val defaultEC = ExecutionContext.Implicits.global
-
 // For ForkJoinPool JDK >= 7 Required Await.ready mandatory in that case
-implicit val customEC = ExecutionContext.fromExecutorService(
-    new java.util.concurrent.ForkJoinPool(parallelismLevel)
-)
+//implicit val customEC = ExecutionContext.fromExecutorService(
+//    new java.util.concurrent.ForkJoinPool(parallelismLevel)
+//)
 
+// For any JDK >= 5
+import java.util.concurrent.{ Executors, ThreadPoolExecutor, TimeUnit }
+implicit val customEC = ExecutionContext.fromExecutorService(
+  Executors.newCachedThreadPool() match {
+    case e: ThreadPoolExecutor =>
+      e.setCorePoolSize(parallelismLevel)
+      //Too allow a quick exit from this script because default value is 60s
+      e.setKeepAliveTime(2, TimeUnit.SECONDS)
+      e
+    case x => x
+  }
+)
 
 
 
@@ -56,4 +65,5 @@ allFuture onComplete { _ match {
   }
 }
 
-Await.ready(allFuture, Duration.Inf) // Mandatory to avoid exit before the end of processing
+ // May me mandatory to avoid exit before the end of processing (depends of uused ExecutionContext)
+Await.ready(allFuture, Duration.Inf)

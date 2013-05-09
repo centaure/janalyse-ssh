@@ -2,7 +2,6 @@
 exec java -jar jassh.jar "$0" "$@"
 !#
 // jassh.jar can be downloaded here : http://code.google.com/p/janalyse-ssh/
-// Java >= 7 mandatory for this example
 
 import jassh._
 
@@ -15,8 +14,8 @@ val parallelismLevel=if (args.size>0) args(0).toInt else 50
 /* For local test : 
  * /etc/ssh/sshd_config
  *    Increase : 
- *       MaxSessions 10  -> 60   (parallelismLevel + delta)
  *       MaxStartups 10  -> 60   (parallelismLevel + delta)
+ *       MaxSessions 10  -> 10   no change, because just 1 session / connection is used
  * 
  * The restart sshd
  */
@@ -26,12 +25,13 @@ val remotehosts = (1 to 1000) map { num =>
 }
 
 
-
+// -----------------------------------------------------------------------
 // For ForkJoinPool JDK >= 7 Required Await.ready mandatory in that case
 //implicit val customEC = ExecutionContext.fromExecutorService(
 //    new java.util.concurrent.ForkJoinPool(parallelismLevel)
 //)
 
+// -----------------------------------------------------------------------
 // For any JDK >= 5
 import java.util.concurrent.{ Executors, ThreadPoolExecutor, TimeUnit }
 implicit val customEC = ExecutionContext.fromExecutorService(
@@ -44,6 +44,7 @@ implicit val customEC = ExecutionContext.fromExecutorService(
     case x => x
   }
 )
+// -----------------------------------------------------------------------
 
 
 
@@ -65,5 +66,6 @@ allFuture onComplete { _ match {
   }
 }
 
- // May me mandatory to avoid exit before the end of processing (depends of uused ExecutionContext)
-Await.ready(allFuture, Duration.Inf)
+// May me mandatory to avoid exit before the end of processing (depends of used ExecutionContext)
+// (Mandatory with ForkJoinPool)
+//Await.ready(allFuture, Duration.Inf)

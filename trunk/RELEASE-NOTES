@@ -3,13 +3,6 @@ JASSH - JANALYSE-SSH - SCALA SSH API
 Crosson David - crosson.david@gmail.com
 ------------------------------------------------------------------
 
-TODO : 
-  => Add tests with a remote host, in addition to localhost
-  => "ls --format=single-column" may to be replaced by "ls | cat"
-  => Check if "date -u '+%Y-%m-%d %H:%M:%S %Z'" is supported on all *nix  (Checked OK for : AIX, Linux, SunOS)
-  => split SSHAPI source file into several files.
-  => BSD, Cygwin support
-
 Remarks & caveats:
   => ssh persisted shell session operations must be executed within the same thread,
      (this is jassh.jar default behavior as it transparently add the -Yrepl-sync)    
@@ -47,24 +40,34 @@ Remarks & caveats:
      differently with or without a TTY/VTTY (sudo, mysql, ...)
 
 ------------------------------------------------------------------
-0.9.9 (2013-xx-yy) WORK IN PROGRESS
+0.9.10 (2013-xx-yy) WORK IN PROGRESS
 
+ - TODO : Add tests with a remote host, in addition to localhost
+ - TODO : "ls --format=single-column" may to be replaced by "ls | cat"
+ - TODO : Check if "date -u '+%Y-%m-%d %H:%M:%S %Z'" is supported on all *nix  (Checked OK for : AIX, Linux, SunOS)
+ - TODO : split SSHAPI source file into several files.
+ - TODO : BSD, Cygwin support
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
- - TODO : add sudo support ?
+ - TODO : add sudo support / with password prompt recognition...
+ - TODO : add su support / with password prompt recognition...
  - TODO : SSHShell timeout on current command (send ^C to break current processing and give back the prompt)
  
- - removing parenthesis to cd to allow executing "cd" to go back to home directory
+------------------------------------------------------------------
+0.9.9 (2013-05-09)
+
  - scala 2.10.1
  - scalalogging 1.0.1
  - sbt assembly 0.8.8
  - sbt eclipse 2.1.2
- - SSHExec timeout implemented BUT not clean
+ - removing parenthesis to cd to allow executing "cd" to go back to home directory
+ - SSHExec timeout implemented BUT not yet clean
     + SSHTimeoutException class added
  - receiveNcompress method added to TransfertOperations (gz)
  - new dependency : "org.apache.commons" % "commons-compress"
  - SSHOptions - removing second parameter list, host comes back to the first and unik parameter list.
    (Two parameters list for SSHOptions was a bad idea)
+
 ------------------------------------------------------------------
 0.9.8 (2013-02-22)
 

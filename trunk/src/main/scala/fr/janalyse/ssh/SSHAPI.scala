@@ -383,20 +383,28 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
   override def execute(cmd: SSHCommand) =
     //shell { _ execute cmd.cmd }    // Using SSHShell channel  (lower performances)
     execOnce(cmd) // Using SSHExec channel (better performances)
-
+    
+  override def executeWithStatus(cmd: SSHCommand): Tuple2[String,Int] = execOnceWithStatus(cmd)
+    
   override def executeAll(cmds: SSHBatch) = shell { _ executeAll cmds }
 
+  
   def execOnceAndTrim(scmd: SSHCommand) = execOnce(scmd).trim()
 
   def execOnce(scmd: SSHCommand) = {
+    val (result, _) = execOnceWithStatus(scmd)
+    result
+  }
+  def execOnceWithStatus(scmd: SSHCommand): Tuple2[String,Int] = {
     val stdout = new StringBuilder()
     val stderr = new StringBuilder()
+    var exitCode = -1
     def outputReceiver(buffer:StringBuilder)(content: ExecResult) {
       content match {
         case ExecPart(part) =>
           if (buffer.size > 0) buffer.append("\n")
           buffer.append(part)
-        case ExecEnd =>
+        case ExecEnd(rc) => exitCode=rc.toInt
         case ExecTimeout =>
       }
     }
@@ -410,7 +418,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     } finally {
       runner foreach { _.close }
     }
-    stdout.toString()
+    (stdout.toString(), exitCode)
   }
 
   private var firstHasFailed=false
@@ -550,7 +558,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
 // ==========================================================================================
 sealed trait ExecResult
 case class ExecPart(content:String) extends ExecResult
-object ExecEnd extends ExecResult
+case class ExecEnd(rc:Int) extends ExecResult
 object ExecTimeout extends ExecResult
 
 
@@ -650,7 +658,7 @@ class SSHExec(cmd: String, out: ExecResult => Any, err: ExecResult => Any)(impli
 	        }
 	      } while (!eofreached) // && !channel.isEOF() && !channel.isClosed()) // => This old test is not good as data may remaining on the stream
           if (appender.size > 0) output(ExecPart(appender.toString()))
-	      output(ExecEnd)
+	      output(ExecEnd(channel.getExitStatus()))
       } catch {
         case e:InterruptedIOException =>
           output(ExecTimeout)
@@ -982,6 +990,12 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
   }
 
   override def executeAll(cmds: SSHBatch): Iterable[String] = cmds.cmdList.map(execute(_))
+
+  override def executeWithStatus(cmd: SSHCommand): Tuple2[String,Int] = {
+    val result = execute(cmd)
+    val rc = executeAndTrim("echo $?").toInt
+    (result, rc)
+  }
 
   /*
   def execute[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {

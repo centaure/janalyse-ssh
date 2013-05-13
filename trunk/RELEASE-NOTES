@@ -53,6 +53,8 @@ Remarks & caveats:
  - TODO : add su support / with password prompt recognition...
  - TODO : SSHShell timeout on current command (send ^C to break current processing and give back the prompt)
  
+ - exit code accessible through a new method named executeWithStatus (thanks Alex Biehl for the suggestion)
+ - 
 ------------------------------------------------------------------
 0.9.9 (2013-05-09)
 

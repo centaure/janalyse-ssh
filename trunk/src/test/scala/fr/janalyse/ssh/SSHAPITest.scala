@@ -449,5 +449,19 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
       envmap.keys should ( contain("ABC") and contain("XYZ") )
     }
   }
+  
+  //==========================================================================================================
+  test("exit code tests") {
+    SSH.once(sshopts) {ssh =>
+      val (_, rc) = ssh.executeWithStatus("(echo toto ; exit 2)")
+      rc should equal(2)
+    }
+    
+    SSH.shell(sshopts) {sh =>
+      val (_, rc) = sh.executeWithStatus("(echo toto ; exit 3)")
+      rc should equal(3)
+    }
+  }
+  
 }
 

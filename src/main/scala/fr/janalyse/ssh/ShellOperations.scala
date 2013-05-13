@@ -19,6 +19,13 @@ trait ShellOperations extends CommonOperations with Logging {
   def execute(cmd: SSHCommand): String
 
   /**
+   * Execute the current command and return the result as a string and exit code tuple
+   * @param cmd command to be executed
+   * @return A tuple made of the result string and the exit code
+   */
+  def executeWithStatus(cmd: SSHCommand): Tuple2[String,Int]
+
+  /**
    * Execute the current batch (list of commands) and return the result as a string collection
    * @param cmds batch to be executed
    * @return result string collection

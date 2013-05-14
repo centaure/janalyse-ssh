@@ -54,7 +54,9 @@ Remarks & caveats:
  - TODO : SSHShell timeout on current command (send ^C to break current processing and give back the prompt)
  
  - exit code accessible through a new method named executeWithStatus (thanks Alex Biehl for the suggestion)
- - 
+ - SSHAPI.scala file split finished, SSHAPI.scala file deleted
+ - imports cleaned up, source file copyright & license header added
+ 
 ------------------------------------------------------------------
 0.9.9 (2013-05-09)
 

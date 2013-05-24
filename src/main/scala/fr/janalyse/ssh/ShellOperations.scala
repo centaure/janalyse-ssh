@@ -19,6 +19,7 @@ package fr.janalyse.ssh
 import com.typesafe.scalalogging.slf4j.Logging
 import java.text.SimpleDateFormat
 import java.util.Date
+import scala.collection.generic.CanBuildFrom
 
 
 
@@ -46,8 +47,20 @@ trait ShellOperations extends CommonOperations with Logging {
    * @param cmds batch to be executed
    * @return result string collection
    */
-  def executeAll(cmds: SSHBatch): Iterable[String]
+  def executeAll(cmds: SSHBatch): Iterable[String] = cmds.cmdList.map(execute(_))
 
+  /**
+   * Execute a collection of commands and returns the associated result collections
+   * @param commands commands collection
+   * @result commands executions results collection
+   */
+  def execute[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
+    var builder = bf()
+    for (cmd <- commands) builder += execute(cmd)
+    builder.result
+  }
+
+  
   /**
    * Execute the current command and pass the result to the given code
    * @param cmd command to be executed

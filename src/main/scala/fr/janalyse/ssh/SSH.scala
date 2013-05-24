@@ -267,8 +267,7 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
 
   def run(cmd: String, out: ExecResult => Any, err: ExecResult => Any = noerr) = new SSHExec(cmd, out, err)
 
-  override def execute(cmd: SSHCommand) =
-    execOnce(cmd) // Using SSHExec channel (better performances)
+  override def execute(cmd: SSHCommand) = execOnce(cmd) // Using SSHExec channel (better performances)
     
   override def executeWithStatus(cmd: SSHCommand): Tuple2[String,Int] = execOnceWithStatus(cmd)
     

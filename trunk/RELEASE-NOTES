@@ -45,14 +45,13 @@ Remarks & caveats:
  - TODO : Add tests with a remote host, in addition to localhost
  - TODO : "ls --format=single-column" may to be replaced by "ls | cat"
  - TODO : Check if "date -u '+%Y-%m-%d %H:%M:%S %Z'" is supported on all *nix  (Checked OK for : AIX, Linux, SunOS)
- - TODO : split SSHAPI source file into several files.
  - TODO : BSD, Cygwin support
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
  - TODO : add sudo support / with password prompt recognition...
  - TODO : add su support / with password prompt recognition...
- - TODO : SSHShell timeout on current command (send ^C to break current processing and give back the prompt)
  
+ - SSHShell timeout on current command (send ^C to break current processing and give back the prompt)
  - exit code accessible through a new method named executeWithStatus (thanks Alex Biehl for the suggestion)
  - SSHAPI.scala file split finished, SSHAPI.scala file deleted
  - imports cleaned up, source file copyright & license header added

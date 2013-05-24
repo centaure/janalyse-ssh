@@ -43,7 +43,6 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     fromServer.getResponse()
   }
 
-  override def executeAll(cmds: SSHBatch): Iterable[String] = cmds.cmdList.map(execute(_))
 
   override def executeWithStatus(cmd: SSHCommand): Tuple2[String,Int] = {
     val result = execute(cmd)
@@ -51,15 +50,6 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     (result, rc)
   }
 
-  /*
-  def execute[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
-    var builder = bf.apply()
-    try {
-      for (cmd <- commands) builder += (execute(cmd))
-    }
-    builder.result
-  }
-*/
 
   private var doInit = true
   private def sendCommand(cmd: String): Unit = {
@@ -86,31 +76,49 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
   }
 
   class Producer(output: OutputStream) {
-    def sendCommand(cmd: String) {
-      output.write(cmd.getBytes)
-      output.write("\n".getBytes)
+    private def sendChar(char:Int) {
+      output.write(char)
       output.flush()
     }
+    private def sendString(cmd:String) {
+      output.write(cmd.getBytes)
+      nl()
+      output.flush()
+    }
+    def sendCommand(cmd: String) {sendString(cmd)}
+    
+    def break()  {sendChar(3)}  // Ctrl-C
+    def exit()   {sendChar(4)}  // Ctrl-D
+    def excape() {sendChar(27)} // ESC
+    def nl()     {sendChar(10)} // LF or NEWLINE or ENTER or Ctrl-J
+    def cr()     {sendChar(13)} // CR
+
     def close() { output.close() }
   }
 
   class ConsumerOutputStream(checkReady: Boolean) extends OutputStream {
-
-    private val resultsQueue = new ArrayBlockingQueue[String](100)
-
-    def now = System.currentTimeMillis()
+    import java.util.concurrent.TimeUnit
+    
+    private val resultsQueue = new ArrayBlockingQueue[String](10)
 
     def hasResponse() = resultsQueue.size > 0
-
+    
     def getResponse(timeout: Long = ssh.options.timeout) = {
-      val started = now
-      resultsQueue.take()
+      if (timeout==0L) resultsQueue.take()
+      else {
+        resultsQueue.poll(timeout, TimeUnit.MILLISECONDS) match {
+          case null =>
+            toServer.break()
+            val output = resultsQueue.take()
+            throw new SSHTimeoutException(output, "") // We couldn't distinguish stdout from stderr within a shell session
+          case x => x
+        }
+      }
     }
 
     private var ready = checkReady
     private val readyQueue = new ArrayBlockingQueue[String](1)
     def waitReady() {
-      //Thread.sleep(500) // TODO : Bad but Mandatory to get some response from JSCH => Find a better way
       if (ready == false) readyQueue.take()
     }
     private val readyMessageQuotePrefix="'"+readyMessage

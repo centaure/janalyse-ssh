@@ -55,6 +55,9 @@ Remarks & caveats:
  - exit code accessible through a new method named executeWithStatus (thanks Alex Biehl for the suggestion)
  - SSHAPI.scala file split finished, SSHAPI.scala file deleted
  - imports cleaned up, source file copyright & license header added
+ - jsch 0.1.50
+ - sbteclipse-plugin 2.2.0
+
  
 ------------------------------------------------------------------
 0.9.9 (2013-05-09)

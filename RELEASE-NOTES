@@ -57,7 +57,7 @@ Remarks & caveats:
  - imports cleaned up, source file copyright & license header added
  - jsch 0.1.50
  - sbteclipse-plugin 2.2.0
-
+ - fix : ls on an empty directory was returning a collection containing an empty string
  
 ------------------------------------------------------------------
 0.9.9 (2013-05-09)

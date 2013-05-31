@@ -190,7 +190,7 @@ trait ShellOperations extends CommonOperations with Logging {
    */
   def ls(dirname: String): Iterable[String] = {
     //executeAndTrimSplit("""ls --format=single-column "%s" """.format(dirname))
-    executeAndTrimSplit("""ls "%s" | cat """.format(dirname))
+    executeAndTrimSplit("""ls "%s" | cat """.format(dirname)).filter(_.size>0)
   }
 
   /**

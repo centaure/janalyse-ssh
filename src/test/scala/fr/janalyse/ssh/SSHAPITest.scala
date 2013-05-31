@@ -464,5 +464,14 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     }
   }
   
+  //==========================================================================================================
+  test("more ls test") {
+    SSH.shell(sshopts) {sh =>
+      sh.execute("rm -fr ~/truc")
+      sh.mkdir("truc")
+      sh.ls("truc").size should equal(0)
+      sh.rmdir("truc"::Nil)
+    }
+  }
 }
 

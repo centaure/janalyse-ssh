@@ -6,11 +6,11 @@ organization :="fr.janalyse"
 
 organizationHomepage := Some(new URL("http://www.janalyse.fr"))
 
-scalaVersion := "2.10.1"
+scalaVersion := "2.10.2"
 
 scalacOptions ++= Seq( "-deprecation", "-unchecked", "-feature")
 
-crossScalaVersions := Seq("2.10.1")
+//crossScalaVersions := Seq("2.10.2")
 
 libraryDependencies ++= Seq(
     "com.typesafe"      %% "scalalogging-slf4j" % "1.0.1"

@@ -6,7 +6,7 @@ import java.util.concurrent.ArrayBlockingQueue
 
 
 class SSHShell(implicit ssh: SSH) extends ShellOperations {
-  val readyMessage = "ready-" + System.currentTimeMillis()
+  private def createReadyMessage = "ready-" + System.currentTimeMillis() 
   val defaultPrompt = """-PRMT-: """
   val customPromptGiven = ssh.options.prompt.isDefined
   val prompt = ssh.options.prompt getOrElse defaultPrompt
@@ -38,6 +38,21 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     channel.disconnect()
   }
 
+  def become(someoneelse:String, password:Option[String]=None):Boolean = {
+    execute("LANG=en; export LANG")
+    sendCommand(s"su - ${someoneelse}")
+    Thread.sleep(1000)
+    if (someoneelse != "root") {
+      password.foreach {it =>
+        sendCommand(it)
+        shellInit()
+        val result = fromServer.getResponse()
+        println(result)
+      }
+    } else shellInit()
+    whoami == someoneelse
+  }
+  
   override def execute(cmd: SSHCommand): String = {
     sendCommand(cmd.cmd)
     fromServer.getResponse()
@@ -50,12 +65,11 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     (result, rc)
   }
 
-
-  private var doInit = true
-  private def sendCommand(cmd: String): Unit = {
-    if (doInit) {
+  private def shellInit() = {
       if (ssh.options.prompt.isEmpty) {
         // if no prompt is given we assume that a standard sh/bash/ksh shell is used
+        val readyMessage = createReadyMessage
+        fromServer.setReadyMessage(readyMessage)
         toServer.sendCommand("unset LS_COLORS")
         toServer.sendCommand("unset EDITOR")
         toServer.sendCommand("unset PAGER")
@@ -70,11 +84,17 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
         fromServer.waitReady()
         fromServer.getResponse() // For the initial prompt
       }
-      doInit = false
+  }
+
+  private var doInit = true
+  private def sendCommand(cmd: String): Unit = {
+    if (doInit) {
+      shellInit()
+      doInit = false    
     }
     toServer.sendCommand(cmd)
   }
-
+  // -----------------------------------------------------------------------------------
   class Producer(output: OutputStream) {
     private def sendChar(char:Int) {
       output.write(char)
@@ -96,6 +116,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     def close() { output.close() }
   }
 
+  // -----------------------------------------------------------------------------------
   class ConsumerOutputStream(checkReady: Boolean) extends OutputStream {
     import java.util.concurrent.TimeUnit
     
@@ -116,12 +137,18 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
       }
     }
 
+    def setReadyMessage(newReadyMessage:String) = {
+      ready = checkReady
+      readyMessage = newReadyMessage
+      readyMessageQuotePrefix="'"+newReadyMessage
+    }
+    private var readyMessage = ""
     private var ready = checkReady
     private val readyQueue = new ArrayBlockingQueue[String](1)
     def waitReady() {
       if (ready == false) readyQueue.take()
     }
-    private val readyMessageQuotePrefix="'"+readyMessage
+    private var readyMessageQuotePrefix="'"+readyMessage
     private val promptEqualPrefix="="+prompt
 
     private val consumerAppender = new StringBuilder(8192)
@@ -131,6 +158,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     def write(b: Int) {
       if (b != 13) { //CR removed... CR is always added by JSCH !!!!
         val ch=b.toChar
+        //print(ch)
         consumerAppender.append(ch) // TODO - Add charset support
         if (!ready) { // We want the response and only the response, not the echoed command, that's why the quote is prefixed
           if ( consumerAppender.endsWith(readyMessage) && 
@@ -139,7 +167,9 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
             ready = true
             readyQueue.put("ready")
           }
-        } else if (lastPromptChar==ch && consumerAppender.endsWith(prompt) && !consumerAppender.endsWith(promptEqualPrefix)) {
+        } else if (lastPromptChar==ch
+                   && consumerAppender.endsWith(prompt)
+                   && !consumerAppender.endsWith(promptEqualPrefix)) {
           val promptIndex = consumerAppender.size - promptSize
           val firstNlIndex = consumerAppender.indexOf("\n")
           val result = consumerAppender.substring(firstNlIndex + 1, promptIndex)

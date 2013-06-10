@@ -142,6 +142,12 @@ trait ShellOperations extends CommonOperations with Logging {
     
 
   /**
+   * who am I ?
+   * @return current user name
+   */
+  def whoami: String = executeAndTrim("whoami")
+  
+  /**
    * *nix system name (Linux, AIX, SunOS, ...)
    * @return remote *nix system name
    */

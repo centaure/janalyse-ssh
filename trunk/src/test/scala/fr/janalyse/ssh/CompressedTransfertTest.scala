@@ -73,6 +73,7 @@ class CompressedTransfertTest extends FunSuite with ShouldMatchers with SomeHelp
       Path(gztestedfile).exists() should equal(true)
       ftp.localmd5sum(gztestedfile) should equal(Some(gztestedfileMD5))
     }
+    doclean
   }
 
 }

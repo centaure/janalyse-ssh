@@ -49,18 +49,37 @@ trait TransfertOperations extends CommonOperations {
   /**
    * Copy and compress (if required) a remote file to a local one
    * @param remoteFilename Source file name (on remote system)
+   * @param localfilename Destination filename (without compressed extension)
+   * @return local file used
+   */
+  def receiveNcompress(remoteFilename:String, localFilename:String):File  = {
+    val dest = new File(localFilename)
+    if (dest.isDirectory()) {
+      val basename = remoteFilename.split("/+").last
+      receiveNcompress(remoteFilename, dest, basename)
+    } else {
+      val destdir = Option(dest.getParentFile()).filter(_.exists()).getOrElse(new File("."))
+      val basename = dest.getName()
+      receiveNcompress(remoteFilename, destdir, basename)
+    }
+  }
+  /**
+   * Copy and compress (if required) a remote file to a local one
+   * @param remoteFilename Source file name (on remote system)
    * @param localDirectory Destination directory
-   * @param localBasename Destination file base name (local system), compressed extension may be added to it
+   * @param localFilename Destination file name (local system), compressed extension may be added to it
    * @return local file used
    */
   def receiveNcompress(remoteFilename:String, localDirectory:File, localBasename:String):File  = {
     val (outputStream, localFile) = if (compressedCheck(remoteFilename).isDefined) {
-      val local  = new File(localDirectory, localBasename)
+      val destfilename = remoteFilename.split("/+").last
+      val local  = new File(localDirectory, destfilename)
       val output = new FileOutputStream(local)
       (output, local)
     } else {
       import org.apache.commons.compress.compressors.CompressorStreamFactory
-      val local  = new File(localDirectory, localBasename+".gz")
+      val destfilename = if (localBasename.endsWith(".gz")) localBasename else localBasename+".gz"
+      val local  = new File(localDirectory, destfilename)
       val output = new FileOutputStream(local)      
       val compressedOutput = new CompressorStreamFactory().createCompressorOutputStream(CompressorStreamFactory.GZIP, output)
       (compressedOutput, local)

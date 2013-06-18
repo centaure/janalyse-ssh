@@ -4,9 +4,10 @@ import com.jcraft.jsch.{ChannelSftp, SftpException}
 import java.io._
 import java.nio.charset.Charset
 import scala.io.BufferedSource
+import com.typesafe.scalalogging.slf4j.Logging
 
 
-class SSHFtp(implicit ssh: SSH) extends TransfertOperations {
+class SSHFtp(implicit ssh: SSH) extends TransfertOperations with Logging {
   private val channel: ChannelSftp = {
     //jschftpchannel.connect(link.connectTimeout)
     val ch = ssh.jschsession.openChannel("sftp").asInstanceOf[ChannelSftp]
@@ -42,8 +43,14 @@ class SSHFtp(implicit ssh: SSH) extends TransfertOperations {
     try {
       channel.get(remoteFilename, outputStream)
     } catch {
-      case e: SftpException if (e.id == 2) => None // File doesn't exist
-      case e: IOException => None
+      case e: SftpException if (e.id == 2) =>
+        logger.warn(s"File '${remoteFilename}' doesn't exist")
+      case e: IOException =>
+        logger.error(s"can't receive ${remoteFilename}", e)
+      case e: Exception =>
+        logger.error(s"can't receive ${remoteFilename}", e)
+    } finally {
+      outputStream.close      
     }
   }
 

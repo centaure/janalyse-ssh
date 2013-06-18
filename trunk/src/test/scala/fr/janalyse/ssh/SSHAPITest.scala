@@ -28,14 +28,7 @@ import scala.collection.parallel.ForkJoinTaskSupport
 import org.scalatest.OptionValues._
 
 @RunWith(classOf[JUnitRunner])
-class SSHAPITest extends FunSuite with ShouldMatchers {
-
-  def howLongFor[T](what: => T) = {
-    val begin = System.currentTimeMillis()
-    val result = what
-    val end = System.currentTimeMillis()
-    (end - begin, result)
-  }
+class SSHAPITest extends FunSuite with ShouldMatchers with SomeHelp {
 
   val sshopts = SSHOptions("127.0.0.1", "test", password="testtest")
   //val sshopts = SSHOptions("192.168.2.238", "test", password=Some("testtest"), port=22022)
@@ -51,20 +44,51 @@ class SSHAPITest extends FunSuite with ShouldMatchers {
     year should equal(11)
   }
   //==========================================================================================================
-  test("Execution & file transferts within the same ssh session (autoclose)") {
+  test("Execution & file transferts within the same ssh session") {
     SSH.once(sshopts) { ssh =>
+      val rfile="HelloWorld.txt"
+      val lfile="/tmp/sshtest.txt"
+      def clean = {
+        f(rfile).delete
+        f(lfile).delete
+      }
+      clean
+      
       val msg = ssh execute "/bin/echo -n 'Hello %s'".format(util.Properties.userName)
 
-      ssh.put(msg, "HelloWorld.txt")
+      ssh.put(msg, rfile)
 
-      (ssh get "HelloWorld.txt") should equal(Some(msg))
+      (ssh get rfile) should equal(Some(msg))
 
-      ssh.receive("HelloWorld.txt", "/tmp/sshtest.txt")
+      ssh.receive(rfile, lfile)
 
-      Source.fromFile("/tmp/sshtest.txt").getLines().next() should equal(msg)
+      Source.fromFile(lfile).getLines().next() should equal(msg)
     }
   }
-  
+
+  //==========================================================================================================
+  test("Execution & file transferts within the same sh & ftp persisted session") {
+    SSH.shellAndFtp(sshopts) { (sh, ftp) =>
+      val rfile="HelloWorld.txt"
+      val lfile="/tmp/sshtest.txt"
+      def clean = {
+        f(rfile).delete
+        f(lfile).delete
+      }
+      clean
+      
+      val msg = sh execute "/bin/echo -n 'Hello %s'".format(util.Properties.userName)
+
+      ftp.put(msg, rfile)
+
+      (ftp get rfile) should equal(Some(msg))
+
+      ftp.receive(rfile, lfile)
+
+      Source.fromFile(lfile).getLines().next() should equal(msg)
+    }
+  }
+
   //==========================================================================================================
   test("shell coherency check") {
     SSH.shell(sshopts) { sh=>

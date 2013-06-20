@@ -29,13 +29,7 @@ import scala.collection.parallel.ForkJoinTaskSupport
 import org.scalatest.OptionValues._
 
 @RunWith(classOf[JUnitRunner])
-class TimeoutTest extends FunSuite with ShouldMatchers {
-
-
-  val sshopts = SSHOptions("127.0.0.1", "test", password="testtest")
-  //val sshopts = SSHOptions("192.168.2.238", "test", password=Some("testtest"), port=22022)
-  //val sshopts = SSHOptions("www.janalyse.fr")
-  
+class TimeoutTest extends FunSuite with ShouldMatchers with SomeHelp  {
 
   test("timeout tests") { // TODO : not working, make timeout possible with too long running remote command; (^C is already possible)!!
     val opts = SSHOptions("127.0.0.1", username="test", timeout=7000, connectTimeout=2000)

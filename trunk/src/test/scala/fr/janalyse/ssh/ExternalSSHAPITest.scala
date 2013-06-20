@@ -22,14 +22,8 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class ExternalSSHAPITest extends FunSuite with ShouldMatchers {
+class ExternalSSHAPITest extends FunSuite with ShouldMatchers  with fr.janalyse.ssh.SomeHelp {
   
-  val host="127.0.0.1"
-  val user="test"
-  val pass="testtest"
-    
-  val sshopts = jassh.SSHOptions(host, username=user, password = pass)
-
   // -------------------------------------------------------------------
   // -- With a global import
   {
@@ -44,6 +38,7 @@ class ExternalSSHAPITest extends FunSuite with ShouldMatchers {
 	  }
 	
 	  test("Hello 3") {
+	    import sshopts.{host, username=>user, password=>pass}
 	    SSH.shell(host, user, password=pass) { _.executeAndTrim("echo 'hello'") } should equal("hello")
 	  }
   }

@@ -7,7 +7,7 @@ import java.util.concurrent.ArrayBlockingQueue
 
 class SSHShell(implicit ssh: SSH) extends ShellOperations {
   private def createReadyMessage = "ready-" + System.currentTimeMillis() 
-  val defaultPrompt = """-PRMT-: """
+  val defaultPrompt = """-PRMT-:+"""
   val customPromptGiven = ssh.options.prompt.isDefined
   val prompt = ssh.options.prompt getOrElse defaultPrompt
 
@@ -152,9 +152,10 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     private val promptEqualPrefix="="+prompt
 
     private val consumerAppender = new StringBuilder(8192)
-    private var searchForPromptIndex = 0
     private val promptSize = prompt.size
-    private var lastPromptChar = prompt.last
+    private val lastPromptChar = prompt.last
+    private var searchForPromptIndex = 0
+    
     def write(b: Int) {
       if (b != 13) { //CR removed... CR is always added by JSCH !!!!
         val ch=b.toChar

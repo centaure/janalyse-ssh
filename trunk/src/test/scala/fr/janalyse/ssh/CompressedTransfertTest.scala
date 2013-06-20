@@ -32,9 +32,6 @@ import scalax.file.ImplicitConversions._
 @RunWith(classOf[JUnitRunner])
 class CompressedTransfertTest extends FunSuite with ShouldMatchers with SomeHelp {
 
-  import util.Properties.{ userName => user }
-  val opts = SSHOptions("127.0.0.1", username = user)
-
 
   test("simple") {
     val content = "Hello world"
@@ -42,15 +39,15 @@ class CompressedTransfertTest extends FunSuite with ShouldMatchers with SomeHelp
     val gztestedfile = testedfile + ".gz"
     val gztestedfileMD5 = "00ec8273ecfb3c36b7e3c711f0628f8e"
       
-    SSH.ftp(opts) { _.put(content, testedfile) }
-    SSH.ftp(opts) { _.get(testedfile) } should equal(Some(content))
+    SSH.ftp(sshopts) { _.put(content, testedfile) }
+    SSH.ftp(sshopts) { _.get(testedfile) } should equal(Some(content))
     def doclean = {
       Path(testedfile).delete()
       Path(gztestedfile).delete()
     }
     // Now let's test the compressed feature
     doclean
-    SSH.once(opts) { ssh =>
+    SSH.once(sshopts) { ssh =>
       ssh.receive(testedfile, testedfile)
       Path(testedfile).string should equal(content)
       ssh.receiveNcompress(testedfile, testedfile)
@@ -58,7 +55,7 @@ class CompressedTransfertTest extends FunSuite with ShouldMatchers with SomeHelp
       ssh.localmd5sum(gztestedfile) should equal(Some(gztestedfileMD5))
     }
     doclean
-    SSH.shellAndFtp(opts) { (_, ftp) =>
+    SSH.shellAndFtp(sshopts) { (_, ftp) =>
       ftp.receive(testedfile, testedfile)
       Path(testedfile).string should equal(content)
       ftp.receiveNcompress(testedfile, testedfile)
@@ -66,7 +63,7 @@ class CompressedTransfertTest extends FunSuite with ShouldMatchers with SomeHelp
       ftp.localmd5sum(gztestedfile) should equal(Some(gztestedfileMD5))
     }
     doclean
-    SSH.ftp(opts) { ftp =>
+    SSH.ftp(sshopts) { ftp =>
       ftp.receive(testedfile, testedfile)
       Path(testedfile).string should equal(content)
       ftp.receiveNcompress(testedfile, testedfile)

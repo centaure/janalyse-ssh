@@ -49,15 +49,17 @@ Remarks & caveats:
  - TODO : trying to find a solution with SCP and some special linux file (with unknown file size)
  - TODO : manage when sftp submodule is not available => throw the right exception
  - TODO : add sudo support / with password prompt recognition...
- - TODO : add su support / with password prompt recognition...
  
+ - DONE : add su support / with password prompt recognition...
+    SSHShell.become method added, allow to become someoneelse.
+    typical usage : from an ordinary user become the root user
+ - SomeHelp class added in tests, in order to share common stuff.
  - SSHShell timeout on current command (send ^C to break current processing and give back the prompt)
  - exit code accessible through a new method named executeWithStatus (thanks Alex Biehl for the suggestion)
  - SSHAPI.scala file split finished, SSHAPI.scala file deleted
  - imports cleaned up, source file copyright & license header added
  - fix : ls on an empty directory was returning a collection containing an empty string
- - fix : SSHFtp.receive was not flushing... 
- 
+ - fix : SSHFtp.receive was not flushing...  receiveNcompress was broken with SSHFtp, now it is OK.
  - jsch 0.1.50
  - sbteclipse-plugin 2.2.0
  - scala 2.10.2

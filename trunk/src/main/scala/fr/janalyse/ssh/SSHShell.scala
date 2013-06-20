@@ -42,14 +42,12 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     execute("LANG=en; export LANG")
     sendCommand(s"su - ${someoneelse}")
     Thread.sleep(1000)
-    if (someoneelse != "root") {
-      password.foreach {it =>
-        sendCommand(it)
-        shellInit()
-        val result = fromServer.getResponse()
-        println(result)
-      }
-    } else shellInit()
+    try {
+      if (options.username != "root")
+        password.foreach {it => toServer.send(it) }
+    } finally {
+      shellInit()
+    }
     whoami == someoneelse
   }
   
@@ -70,14 +68,14 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
         // if no prompt is given we assume that a standard sh/bash/ksh shell is used
         val readyMessage = createReadyMessage
         fromServer.setReadyMessage(readyMessage)
-        toServer.sendCommand("unset LS_COLORS")
-        toServer.sendCommand("unset EDITOR")
-        toServer.sendCommand("unset PAGER")
-        toServer.sendCommand("COLUMNS=500")
-        toServer.sendCommand("PS1='%s'".format(defaultPrompt))
+        toServer.send("unset LS_COLORS")
+        toServer.send("unset EDITOR")
+        toServer.send("unset PAGER")
+        toServer.send("COLUMNS=500")
+        toServer.send("PS1='%s'".format(defaultPrompt))
         //toServer.sendCommand("set +o emacs")  // => Makes everything not working anymore, JSCH problem ?
         //toServer.sendCommand("set +o vi") // => Makes everything not working anymore, JSCH problem ?
-        toServer.sendCommand("echo '%s'".format(readyMessage)) // ' are important to distinguish between the command and the result
+        toServer.send("echo '%s'".format(readyMessage)) // ' are important to distinguish between the command and the result
         fromServer.waitReady()
         fromServer.getResponse() // ready response
       } else {
@@ -92,7 +90,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
       shellInit()
       doInit = false    
     }
-    toServer.sendCommand(cmd)
+    toServer.send(cmd)
   }
   // -----------------------------------------------------------------------------------
   class Producer(output: OutputStream) {
@@ -105,7 +103,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
       nl()
       output.flush()
     }
-    def sendCommand(cmd: String) {sendString(cmd)}
+    def send(cmd: String) {sendString(cmd)}
     
     def break()  {sendChar(3)}  // Ctrl-C
     def exit()   {sendChar(4)}  // Ctrl-D
@@ -159,7 +157,6 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
     def write(b: Int) {
       if (b != 13) { //CR removed... CR is always added by JSCH !!!!
         val ch=b.toChar
-        //print(ch)
         consumerAppender.append(ch) // TODO - Add charset support
         if (!ready) { // We want the response and only the response, not the echoed command, that's why the quote is prefixed
           if ( consumerAppender.endsWith(readyMessage) && 

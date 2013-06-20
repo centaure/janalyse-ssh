@@ -29,7 +29,7 @@ import scala.collection.parallel.ForkJoinTaskSupport
 import org.scalatest.OptionValues._
 
 @RunWith(classOf[JUnitRunner])
-class BecomeTest extends FunSuite with ShouldMatchers {
+class BecomeTest extends FunSuite with ShouldMatchers with SomeHelp {
 
 
   test("become tests") {

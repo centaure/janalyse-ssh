@@ -29,10 +29,6 @@ import org.scalatest.OptionValues._
 
 @RunWith(classOf[JUnitRunner])
 class SSHAPITest extends FunSuite with ShouldMatchers with SomeHelp {
-
-  val sshopts = SSHOptions("127.0.0.1", "test", password="testtest")
-  //val sshopts = SSHOptions("192.168.2.238", "test", password=Some("testtest"), port=22022)
-  //val sshopts = SSHOptions("www.janalyse.fr")
   
   //==========================================================================================================
   test("One line exec with automatic resource close") {

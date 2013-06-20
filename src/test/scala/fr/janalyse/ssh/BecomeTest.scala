@@ -37,7 +37,7 @@ class BecomeTest extends FunSuite with ShouldMatchers with SomeHelp {
     val opts = SSHOptions("127.0.0.1", username=user, timeout=10000)
     SSH.shell(opts) {sh =>
       sh.become("test", Some("testtest")) should equal(true)
-      sh.whoami should equal(user)
+      sh.whoami should equal("test")
     }
   }
   

@@ -355,6 +355,11 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
     )
   }
 
+  override def putFromStream(data: java.io.InputStream, howmany:Int, remoteDestination: String) {
+    // Never use fallback mechanism for that case, because data stream is consumed...
+    ssh.scp(_ putFromStream(data, howmany, remoteDestination))
+  }
+  
   override def send(fromLocalFile: File, remoteDestination: String) {
     opWithFallback(
       ssh.scp(_.send(fromLocalFile, remoteDestination)),

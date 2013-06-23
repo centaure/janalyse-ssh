@@ -48,6 +48,15 @@ class SSHScp(implicit ssh: SSH) extends TransfertOperations {
     inputStream2remoteFile(linput, sz, rfilename, rDirectory)
   }
 
+  override def putFromStream(data: java.io.InputStream, howmany:Int, remoteDestination: String) {
+    val parts = remoteDestination.split("/")
+    val rfilename = parts.last
+    val rDirectory = if (parts.init.size == 0) "." else parts.init.mkString("/")
+
+    inputStream2remoteFile(data, howmany, rfilename, rDirectory)
+    
+  }
+  
   override def send(fromLocalFile: File, remoteDestination: String) {
     val sz = fromLocalFile.length
     val linput = new FileInputStream(fromLocalFile)

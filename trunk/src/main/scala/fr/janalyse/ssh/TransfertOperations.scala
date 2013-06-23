@@ -110,16 +110,24 @@ trait TransfertOperations extends CommonOperations {
   /**
    * upload string content to a remote file, if file already exists, it is overwritten
    * @param data content to upload in the remote file
-   * @param remoteDestination file content to get
+   * @param remoteDestination remote destination
    */
   def put(data: String, remoteDestination: String)
 
   /**
    * upload bytes array content to a remote file, if file already exists, it is overwritten
    * @param data content to upload in the remote file
-   * @param remoteDestination file content to get
+   * @param remoteDestination remote destination
    */
   def putBytes(data: Array[Byte], remoteDestination: String)
+
+  /**
+   * upload bytes coming from the input stream to a remote file, if file already exists, it is overwritten
+   * @param data input stream
+   * @param howmany how much data to write to remote destination
+   * @param remoteDestination remote destination
+   */
+  def putFromStream(data: java.io.InputStream, howmany:Int, remoteDestination: String)
 
   /**
    * Copy a local file to a remote one

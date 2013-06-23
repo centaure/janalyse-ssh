@@ -63,7 +63,11 @@ class SSHFtp(implicit ssh: SSH) extends TransfertOperations with Logging {
   }
 
   override def putFromStream(data: java.io.InputStream, howmany:Int, remoteDestination: String) {
-    channel.put(data, remoteDestination) // In that case howmany is ignored !
+    putFromStream(data, remoteDestination) // In that case howmany is ignored !
+  }
+  
+  def putFromStream(data: java.io.InputStream, remoteDestination: String) {
+    channel.put(data, remoteDestination)
   }
   
   override def send(localFile: File, remoteFilename: String) {

@@ -32,6 +32,7 @@ import scalax.file.ImplicitConversions._
 @RunWith(classOf[JUnitRunner])
 class CompressedTransfertTest extends FunSuite with ShouldMatchers with SomeHelp {
 
+  info(s"Those tests require to have a user named '${sshopts.username}' with password '${sshopts.password}' on ${sshopts.host}")
 
   test("simple") {
     val content = "Hello world"

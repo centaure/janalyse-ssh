@@ -31,8 +31,10 @@ import org.scalatest.OptionValues._
 @RunWith(classOf[JUnitRunner])
 class TimeoutTest extends FunSuite with ShouldMatchers with SomeHelp  {
 
+  info(s"Those tests require to have a user named '${sshopts.username}' with password '${sshopts.password}' on ${sshopts.host}")
+  
   test("timeout tests") { // TODO : not working, make timeout possible with too long running remote command; (^C is already possible)!!
-    val opts = SSHOptions("127.0.0.1", username="test", timeout=7000, connectTimeout=2000)
+    val opts = sshopts.copy(timeout=7000, connectTimeout=2000)
     SSH.once(opts) {ssh =>
       ssh.executeAndTrim("sleep 4; echo 'ok'") should equal("ok")
       intercept[SSHTimeoutException] {
@@ -42,7 +44,7 @@ class TimeoutTest extends FunSuite with ShouldMatchers with SomeHelp  {
   }
   
   test("timeout tests with shell SSH session") { // TODO : not working, make timeout possible with too long running remote command; (^C is already possible)!!
-    val opts = SSHOptions("127.0.0.1", username="test", timeout=7000, connectTimeout=2000)
+    val opts = sshopts.copy(timeout=7000, connectTimeout=2000)
     SSH.shell(opts) {sh =>
       sh.executeAndTrim("sleep 4; echo 'ok'") should equal("ok")
       intercept[SSHTimeoutException] {

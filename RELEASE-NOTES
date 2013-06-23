@@ -21,7 +21,8 @@ Remarks & caveats:
   => Be aware of the fact that SFTP SSH Channel may be not available, 
      so prefer SCP to maximize scripts / code portability from one system to an other.
      Looks like linux SSHD comes with SFTP by default, but not AIX.
-     --> SOLVED IN 0.9.5-b3 WITH an automatic fallback mechanism
+     --> Since 0.9.5-b3 , SSH transfert operations comes with an automatic fallback mechanism with priority to scp
+         So prefer using SSH transfert operations, over SSHFtp transferts operations.
 
   => TAKE CARE OF HOW MANY SESSIONS CAN BE MANAGED SIMULTANEOUSLY. Check sshd configuration
      MaxStartups = 10 (default) the maximum number of concurrent unauthenticated connections to the SSH daemon
@@ -54,6 +55,7 @@ Remarks & caveats:
     SSHShell.become method added, allow to become someoneelse.
     typical usage : from an ordinary user become the root user
  - SomeHelp class added in tests, in order to share common stuff.
+ - various test classes enhancements
  - SSHShell timeout on current command (send ^C to break current processing and give back the prompt)
  - exit code accessible through a new method named executeWithStatus (thanks Alex Biehl for the suggestion)
  - SSHAPI.scala file split finished, SSHAPI.scala file deleted

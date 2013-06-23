@@ -23,7 +23,9 @@ import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class ExternalSSHAPITest extends FunSuite with ShouldMatchers  with fr.janalyse.ssh.SomeHelp {
-  
+
+  info(s"Those tests require to have a user named '${sshopts.username}' with password '${sshopts.password}' on ${sshopts.host}")
+
   // -------------------------------------------------------------------
   // -- With a global import
   {

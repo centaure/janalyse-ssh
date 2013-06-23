@@ -30,6 +30,8 @@ import org.scalatest.OptionValues._
 @RunWith(classOf[JUnitRunner])
 class SSHAPITest extends FunSuite with ShouldMatchers with SomeHelp {
   
+  info(s"Those tests require to have a user named '${sshopts.username}' with password '${sshopts.password}' on ${sshopts.host}")
+  
   //==========================================================================================================
   test("One line exec with automatic resource close") {
     SSH.once(sshopts) { _.execute("expr 1 + 1").trim } should equal("2")
@@ -191,7 +193,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers with SomeHelp {
         val meminfo = ftp.get("/proc/meminfo")
       }
       // output streaming
-      def receiver(result:ExecResult) {result match {case ExecPart(m) => println(m) case _ =>}}
+      def receiver(result:ExecResult) {result match {case ExecPart(m) => info(s"received :$m") case _ =>}}
       val executor = ssh.run("for i in 1 2 3 ; do echo hello$i ; done", receiver)
       executor.waitForEnd
     }
@@ -230,12 +232,13 @@ class SSHAPITest extends FunSuite with ShouldMatchers with SomeHelp {
   }
   
   //==========================================================================================================
-  ignore("simplified usage with sshOptions as Option") { // TODO - not OK for Darwin
+  test("simplified usage with sshOptions as Option") { // TODO - not OK for Darwin
     val cnxinfo = Some(sshopts)
-    val stat = SSH.ftp(cnxinfo) {_.get("/proc/stat")}
+    val stat = SSH.once(cnxinfo){_.get("/dev/null")}.flatten
     
     stat should not equal(None)
-    stat.get.size should be >(0)
+    
+    stat.get.size should equal(0)
   }
 
   //==========================================================================================================
@@ -285,7 +288,7 @@ class SSHAPITest extends FunSuite with ShouldMatchers with SomeHelp {
   }
 
   //==========================================================================================================
-  ignore("file transfert performances (with content loaded in memory)") {
+  test("file transfert performances (with content loaded in memory)") {
     val testfile="test-transfert"
       
     def withSCP(filename:String, ssh:SSH, howmany:Int, sizeKb:Int) {
@@ -315,22 +318,22 @@ class SSHAPITest extends FunSuite with ShouldMatchers with SomeHelp {
       info("Bytes rate : %.1fMb/s %dMb in %.1fs for %d files - %s".format(howmany*sizeKb*1000L/d/1024d, sizeKb*howmany/1024, d/1000d, howmany, comments))      
     }
     
-    val withCipher=SSHOptions("localhost", "test", noneCipher=false)
-    val noneCipher=SSHOptions("localhost", "test", noneCipher=true)
+    val withCipher=sshopts.copy(noneCipher=false)
+    val noneCipher=sshopts.copy(noneCipher=true)
     
-    SSH.once(withCipher) (toTest(withSCP, 5, 100*1024, "byterates using SCP"))
-    SSH.once(noneCipher) (toTest(withSCP, 5, 100*1024, "byterates using SCP (with none cipher)"))
-    SSH.once(withCipher) (toTest(withSFTP, 5, 100*1024, "byterates using SFTP"))
-    SSH.once(noneCipher) (toTest(withSFTP, 5, 100*1024, "byterates using SFTP (with none cipher)"))
-    SSH.once(withCipher) (toTest(withReusedSFTP, 5, 100*1024, "byterates using SFTP (session reused"))
-    SSH.once(noneCipher) (toTest(withReusedSFTP, 5, 100*1024, "byterates using SFTP (session reused, with none cipher)"))
+    SSH.once(withCipher) (toTest(withSCP, 3, 10*1024, "byterates using SCP"))
+    SSH.once(noneCipher) (toTest(withSCP, 3, 10*1024, "byterates using SCP (with none cipher)"))
+    SSH.once(withCipher) (toTest(withSFTP, 3, 10*1024, "byterates using SFTP"))
+    SSH.once(noneCipher) (toTest(withSFTP, 3, 10*1024, "byterates using SFTP (with none cipher)"))
+    SSH.once(withCipher) (toTest(withReusedSFTP, 3, 10*1024, "byterates using SFTP (session reused"))
+    SSH.once(noneCipher) (toTest(withReusedSFTP, 3, 10*1024, "byterates using SFTP (session reused, with none cipher)"))
     
-    SSH.once(withCipher) (toTest(withSCP, 500, 1024, "byterates using SCP"))
-    SSH.once(noneCipher) (toTest(withSCP, 500, 1024, "byterates using SCP (with none cipher)"))
-    SSH.once(withCipher) (toTest(withSFTP, 500, 1024, "byterates using SFTP"))
-    SSH.once(noneCipher) (toTest(withSFTP, 500, 1024, "byterates using SFTP (with none cipher)"))
-    SSH.once(withCipher) (toTest(withReusedSFTP, 500, 1024, "byterates using SFTP (session reused)"))
-    SSH.once(noneCipher) (toTest(withReusedSFTP, 500, 1024, "byterates using SFTP (session reused, with none cipher)"))
+    SSH.once(withCipher) (toTest(withSCP, 100, 1024, "byterates using SCP"))
+    SSH.once(noneCipher) (toTest(withSCP, 100, 1024, "byterates using SCP (with none cipher)"))
+    SSH.once(withCipher) (toTest(withSFTP, 100, 1024, "byterates using SFTP"))
+    SSH.once(noneCipher) (toTest(withSFTP, 100, 1024, "byterates using SFTP (with none cipher)"))
+    SSH.once(withCipher) (toTest(withReusedSFTP, 100, 1024, "byterates using SFTP (session reused)"))
+    SSH.once(noneCipher) (toTest(withReusedSFTP, 100, 1024, "byterates using SFTP (session reused, with none cipher)"))
   }
 
   //==========================================================================================================
@@ -445,11 +448,11 @@ class SSHAPITest extends FunSuite with ShouldMatchers with SomeHelp {
     rssh.close
   }
   //==========================================================================================================
-  ignore("SCP/SFTP and special system file") {
+  test("SCP/SFTP and special system file") {
     SSH.once(sshopts) { ssh =>
-      val r = ssh.get("/proc/cpuinfo")
+      val r = ssh.get("/dev/null")
       r should not equal(None)
-      r.get should not equal("")
+      r.get should equal("")
     }
   }
   

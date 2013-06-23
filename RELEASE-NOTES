@@ -41,8 +41,7 @@ Remarks & caveats:
      differently with or without a TTY/VTTY (sudo, mysql, ...)
 
 ------------------------------------------------------------------
-0.9.10 (2013-xx-yy) WORK IN PROGRESS
-
+TODO LIST :
  - TODO : Add tests with a remote host, in addition to localhost
  - TODO : "ls --format=single-column" may to be replaced by "ls | cat"
  - TODO : Check if "date -u '+%Y-%m-%d %H:%M:%S %Z'" is supported on all *nix  (Checked OK for : AIX, Linux, SunOS)
@@ -51,6 +50,9 @@ Remarks & caveats:
  - TODO : manage when sftp submodule is not available => throw the right exception
  - TODO : add sudo support / with password prompt recognition...
  
+------------------------------------------------------------------
+0.9.10 (2013-06-xx) WORK IN PROGRESS
+
  - DONE : add su support / with password prompt recognition...
     SSHShell.become method added, allow to become someoneelse.
     typical usage : from an ordinary user become the root user
@@ -62,6 +64,7 @@ Remarks & caveats:
  - imports cleaned up, source file copyright & license header added
  - fix : ls on an empty directory was returning a collection containing an empty string
  - fix : SSHFtp.receive was not flushing...  receiveNcompress was broken with SSHFtp, now it is OK.
+ - new method in TransfertOperations : putFromStream(data: java.io.InputStream, howmany:Int, remoteDestination: String)
  - jsch 0.1.50
  - sbteclipse-plugin 2.2.0
  - scala 2.10.2

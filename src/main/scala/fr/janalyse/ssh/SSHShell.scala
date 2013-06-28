@@ -128,7 +128,11 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
         resultsQueue.poll(timeout, TimeUnit.MILLISECONDS) match {
           case null =>
             toServer.break()
-            val output = resultsQueue.take()
+            //val output = resultsQueue.take() => Already be blocked with this wait instruction...
+            val output = resultsQueue.poll(5, TimeUnit.SECONDS) match {
+              case null => "**no return value - couldn't break current operation**"
+              case x => x
+            }
             throw new SSHTimeoutException(output, "") // We couldn't distinguish stdout from stderr within a shell session
           case x => x
         }

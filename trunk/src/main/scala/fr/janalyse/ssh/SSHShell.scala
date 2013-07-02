@@ -7,7 +7,7 @@ import java.util.concurrent.ArrayBlockingQueue
 
 class SSHShell(implicit ssh: SSH) extends ShellOperations {
   private def createReadyMessage = "ready-" + System.currentTimeMillis() 
-  val defaultPrompt = """-PRMT-:+"""
+  val defaultPrompt = """_T-:+"""
   val customPromptGiven = ssh.options.prompt.isDefined
   val prompt = ssh.options.prompt getOrElse defaultPrompt
 
@@ -155,7 +155,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
 
     private val consumerAppender = new StringBuilder(8192)
     private val promptSize = prompt.size
-    private val lastPromptChar = prompt.last
+    private val lastPromptChars = prompt.reverse.take(2).reverse
     private var searchForPromptIndex = 0
     
     def write(b: Int) {
@@ -169,7 +169,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
             ready = true
             readyQueue.put("ready")
           }
-        } else if (lastPromptChar==ch
+        } else if (consumerAppender.endsWith(lastPromptChars)
                    && consumerAppender.endsWith(prompt)
                    && !consumerAppender.endsWith(promptEqualPrefix)) {
           val promptIndex = consumerAppender.size - promptSize

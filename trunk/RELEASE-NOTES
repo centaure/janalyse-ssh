@@ -44,13 +44,20 @@ Remarks & caveats:
 PERFORMANCES STATUS
 
 2013-07-02
-  - lanfeust : 522.8 c/s - 45.1 Mb/s (gentoo 3.8.13 - java 1.6.0_45 - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
-  - zorglub  : 492.7 c/s - 54.4 Mb/s (macosx 10.8.4 - java 1.6.0_51 - OpenSSH_5.9p1, OpenSSL 0.9.8x 10 May 2012)
+  - lanfeust : 582.2 c/s - 50.3 Mb/s (gentoo 3.8.13 - java hotspot 1.7.0_25 64b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
+  - lanfeust : 574.0 c/s - 43.0 Mb/s (gentoo 3.8.13 - java hotspot 1.7.0_25 32b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
+  - lanfeust : 562.7 c/s - 49.4 Mb/s (gentoo 3.8.13 - java hotspot 1.7.0_11 64b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
+  - lanfeust : 566.8 c/s - 44.3 Mb/s (gentoo 3.8.13 - java hotspot 1.6.0_45 64b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
+  - zorglub  : 486.8 c/s - 55.3 Mb/s (macosx 10.8.4 - java hotspot 1.6.0_51 64b - OpenSSH_5.9p1, OpenSSL 0.9.8x 10 May 2012)
   
 2013-06-23
-  - lanfeust : 552.8 c/s - 47.2 Mb/s (gentoo 3.8.13 - java 1.6.0_45 - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
-  - zorglub  : 484.3 c/s - 59.0 Mb/s (macosx 10.8.4 - java 1.6.0_45 - OpenSSH_5.9p1, OpenSSL 0.9.8x 10 May 2012)
-  - travis   : 112.5 c/s - 57.6 Mb/s (debian 2.6.32 - java 1.6.0_45 - OpenSSH_5.5p1 Debian-6+squeeze3, OpenSSL 0.9.8o 01 Jun 2010)
+  - lanfeust : 552.8 c/s - 47.2 Mb/s (gentoo 3.8.13 - java hotspot 1.6.0_45 64b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
+  - zorglub  : 484.3 c/s - 59.0 Mb/s (macosx 10.8.4 - java hotspot 1.6.0_45 64b - OpenSSH_5.9p1, OpenSSL 0.9.8x 10 May 2012)
+  - travis   : 112.5 c/s - 57.6 Mb/s (debian 2.6.32 - java hotspot 1.6.0_45 64b - OpenSSH_5.5p1 Debian-6+squeeze3, OpenSSL 0.9.8o 01 Jun 2010)
+
+2013-02-22
+  - lanfeust : 566.6 c/s - 45.4 Mb/s (gentoo - java hotspot 1.6.0 64b)
+
 
 ------------------------------------------------------------------
 TODO LIST :

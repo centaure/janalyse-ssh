@@ -51,7 +51,7 @@ trait ShellOperations extends CommonOperations with Logging {
   /**
    * Execute a collection of commands and returns the associated result collections
    * @param commands commands collection
-   * @result commands executions results collection
+   * @return commands executions results collection
    */
   def execute[I <: Iterable[String]](commands: I)(implicit bf: CanBuildFrom[I, String, I]): I = {
     var builder = bf()

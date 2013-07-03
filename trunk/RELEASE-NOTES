@@ -70,7 +70,7 @@ TODO LIST :
  - TODO : add sudo support / with password prompt recognition...
  
 ------------------------------------------------------------------
-0.9.10 (2013-06-xx) WORK IN PROGRESS
+0.9.10 (2013-07-03)
 
  - DONE : add su support / with password prompt recognition...
     SSHShell.become method added, allow to become someoneelse.

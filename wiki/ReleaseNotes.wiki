@@ -18,7 +18,8 @@ Remarks & caveats:
   => Be aware of the fact that SFTP SSH Channel may be not available, 
      so prefer SCP to maximize scripts / code portability from one system to an other.
      Looks like linux SSHD comes with SFTP by default, but not AIX.
-     --> SOLVED IN 0.9.5-b3 WITH an automatic fallback mechanism
+     --> Since 0.9.5-b3 , SSH transfert operations comes with an automatic fallback mechanism with priority to scp
+         So prefer using SSH transfert operations, over SSHFtp transferts operations.
 
   => TAKE CARE OF HOW MANY SESSIONS CAN BE MANAGED SIMULTANEOUSLY. Check sshd configuration
      MaxStartups = 10 (default) the maximum number of concurrent unauthenticated connections to the SSH daemon
@@ -40,8 +41,27 @@ Remarks & caveats:
 
 {{{
 
-0.9.9 (2013-05-09)
+0.9.10 (2013-07-03)
+ - DONE : add su support / with password prompt recognition...
+    SSHShell.become method added, allow to become someoneelse.
+    typical usage : from an ordinary user become the root user
+ - SomeHelp class added in tests, in order to share common stuff.
+ - various test classes enhancements
+ - SSHShell timeout on current command (send ^C to break current processing and give back the prompt)
+ - exit code accessible through a new method named executeWithStatus (thanks Alex Biehl for the suggestion)
+ - SSHAPI.scala file split finished, SSHAPI.scala file deleted
+ - imports cleaned up, source file copyright & license header added
+ - fix : ls on an empty directory was returning a collection containing an empty string
+ - fix : SSHFtp.receive was not flushing...  receiveNcompress was broken with SSHFtp, now it is OK.
+ - fix : break on timeout may block. resultsQueue.poll with timeout instead of a forever resultsQueue.take
+ - new method in TransfertOperations : putFromStream(data: java.io.InputStream, howmany:Int, remoteDestination: String)
+ - jsch 0.1.50
+ - sbteclipse-plugin 2.2.0
+ - scala 2.10.2
+ - sbt assembly 0.9.0
 
+
+0.9.9 (2013-05-09)
  - scala 2.10.1
  - scalalogging 1.0.1
  - sbt assembly 0.8.8

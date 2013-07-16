@@ -69,6 +69,12 @@ TODO LIST :
  - TODO : manage when sftp submodule is not available => throw the right exception
  - TODO : add sudo support / with password prompt recognition...
  
+
+------------------------------------------------------------------
+0.9.11 (2013-07-xx) INPG
+
+ - receiveNcompress was not using localbasename parameter with already compressed remote files.
+   
 ------------------------------------------------------------------
 0.9.10 (2013-07-03)
 

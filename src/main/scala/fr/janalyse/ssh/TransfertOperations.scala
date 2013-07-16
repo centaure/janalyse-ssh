@@ -72,8 +72,8 @@ trait TransfertOperations extends CommonOperations {
    */
   def receiveNcompress(remoteFilename:String, localDirectory:File, localBasename:String):File  = {
     val (outputStream, localFile) = if (compressedCheck(remoteFilename).isDefined) {
-      val destfilename = remoteFilename.split("/+").last
-      val local  = new File(localDirectory, destfilename)
+      //val destfilename = remoteFilename.split("/+").last
+      val local  = new File(localDirectory, localBasename)
       val output = new FileOutputStream(local)
       (output, local)
     } else {

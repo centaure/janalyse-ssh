@@ -71,7 +71,7 @@ TODO LIST :
  
 
 ------------------------------------------------------------------
-0.9.11 (2013-07-xx) INPG
+0.9.11 (2013-07-xx) WORK IN PROGRESS
 
  - receiveNcompress was not using localbasename parameter with already compressed remote files.
    

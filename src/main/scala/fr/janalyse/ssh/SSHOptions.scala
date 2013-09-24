@@ -25,7 +25,8 @@ case class SSHOptions(
   charset: String = "ISO-8859-15",
   noneCipher: Boolean = true,
   compress: Option[Int] = None,
-  execWithPty:Boolean = false    // Sometime some command doesn't behave the same with or without tty, cf mysql
+  execWithPty:Boolean = false,    // Sometime some command doesn't behave the same with or without tty, cf mysql
+  ciphers:Array[String]="none,aes128-cbc,aes192-cbc,aes256-cbc,3des-cbc,blowfish-cbc,aes128-ctr,aes192-ctr,aes256-ctr".split(",")
   ) {
   val keyfiles2lookup = sshKeyFile ++ List("id_rsa", "id_dsa") // ssh key search order (from sshUserDir)
   def compressed = this.copy(compress=Some(5))

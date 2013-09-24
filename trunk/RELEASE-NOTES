@@ -75,6 +75,9 @@ TODO LIST :
 
  - receiveNcompress was not using localbasename parameter with already compressed remote files.
  - sbt-eclipse 2.3.0
+ - fix from "Shashank Jain" that extends the cipher list.
+   none,aes128-cbc,aes192-cbc,aes256-cbc,3des-cbc,blowfish-cbc,aes128-ctr,aes192-ctr,aes256-ctr
+ - ciphers parameter added to SSHOptions in order to allow custom ciphers list
    
 ------------------------------------------------------------------
 0.9.10 (2013-07-03)
@@ -224,7 +227,7 @@ TODO LIST :
 0.9.0
  - now using sbt-assembly 0.8.1
  - now using scalatest 0.8
- - SSHCommand, SSHBatch methods ! renamed to §§
+ - SSHCommand, SSHBatch methods ! renamed
  - new helper methods :
    test, exists, isFile, isDirectory, isExecutable 
  - findAfterDate & date helper fix !!

@@ -241,8 +241,11 @@ class SSH(val options: SSHOptions) extends ShellOperations with TransfertOperati
 		cipher.s2c=aes128-ctr,aes128-cbc,3des-ctr,3des-cbc,blowfish-cbc,aes192-cbc,aes256-cbc
 		cipher.c2s=aes128-ctr,aes128-cbc,3des-ctr,3des-cbc,blowfish-cbc,aes192-cbc,aes256-cbc
        */
-      ses.setConfig("cipher.s2c", "none,aes128-cbc,3des-cbc,blowfish-cbc")
-      ses.setConfig("cipher.c2s", "none,aes128-cbc,3des-cbc,blowfish-cbc")
+      //ses.setConfig("cipher.s2c", "none,aes128-cbc,3des-cbc,blowfish-cbc")
+      //ses.setConfig("cipher.c2s", "none,aes128-cbc,3des-cbc,blowfish-cbc")
+      ses.setConfig("cipher.s2c", options.ciphers.mkString(","))
+ 	  ses.setConfig("cipher.c2s", options.ciphers.mkString(","))
+
       ses.rekey()
     }
     if (ssh.options.compress.isDefined) {

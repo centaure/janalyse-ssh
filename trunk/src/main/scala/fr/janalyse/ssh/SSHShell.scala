@@ -41,7 +41,7 @@ class SSHShell(implicit ssh: SSH) extends ShellOperations {
   def become(someoneelse:String, password:Option[String]=None):Boolean = {
     execute("LANG=en; export LANG")
     sendCommand(s"su - ${someoneelse}")
-    Thread.sleep(1000)
+    Thread.sleep(2000)
     try {
       if (options.username != "root")
         password.foreach {it => toServer.send(it) }

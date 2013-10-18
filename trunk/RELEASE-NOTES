@@ -43,17 +43,24 @@ Remarks & caveats:
 ------------------------------------------------------------------
 PERFORMANCES STATUS
 
+2013-10-18
+  - lanfeust : 611.6 c/s - 48.0 Mb/s (gentoo 3.10.7 - java hotspot 1.7.0_40 64b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1e 11 Feb 2013)
+  - zorglub  : 485.5 c/s - 85.7 Mb/s (macosx 10.8.5 - java hotspot 1.7.0_40 64b - OpenSSH_5.9p1, OpenSSL 0.9.8y 5 Feb 2013)
+
+
 2013-07-02
   - lanfeust : 582.2 c/s - 50.3 Mb/s (gentoo 3.8.13 - java hotspot 1.7.0_25 64b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
+  - zorglub  : 486.8 c/s - 55.3 Mb/s (macosx 10.8.4 - java hotspot 1.6.0_51 64b - OpenSSH_5.9p1, OpenSSL 0.9.8x 10 May 2012)
+  
   - lanfeust : 574.0 c/s - 43.0 Mb/s (gentoo 3.8.13 - java hotspot 1.7.0_25 32b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
   - lanfeust : 562.7 c/s - 49.4 Mb/s (gentoo 3.8.13 - java hotspot 1.7.0_11 64b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
   - lanfeust : 566.8 c/s - 44.3 Mb/s (gentoo 3.8.13 - java hotspot 1.6.0_45 64b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
-  - zorglub  : 486.8 c/s - 55.3 Mb/s (macosx 10.8.4 - java hotspot 1.6.0_51 64b - OpenSSH_5.9p1, OpenSSL 0.9.8x 10 May 2012)
+
   
 2013-06-23
   - lanfeust : 552.8 c/s - 47.2 Mb/s (gentoo 3.8.13 - java hotspot 1.6.0_45 64b - OpenSSH_5.9p1-hpn13v11lpk, OpenSSL 1.0.1c 10 May 2012)
   - zorglub  : 484.3 c/s - 59.0 Mb/s (macosx 10.8.4 - java hotspot 1.6.0_45 64b - OpenSSH_5.9p1, OpenSSL 0.9.8x 10 May 2012)
-  - travis   : 112.5 c/s - 57.6 Mb/s (debian 2.6.32 - java hotspot 1.6.0_45 64b - OpenSSH_5.5p1 Debian-6+squeeze3, OpenSSL 0.9.8o 01 Jun 2010)
+
 
 2013-02-22
   - lanfeust : 566.6 c/s - 45.4 Mb/s (gentoo - java hotspot 1.6.0 64b)
@@ -69,6 +76,9 @@ TODO LIST :
  - TODO : manage when sftp submodule is not available => throw the right exception
  - TODO : add sudo support / with password prompt recognition...
  
+
+------------------------------------------------------------------
+0.9.12 in progress (2013-xx-yy)
 
 ------------------------------------------------------------------
 0.9.11 (2013-09-24)
